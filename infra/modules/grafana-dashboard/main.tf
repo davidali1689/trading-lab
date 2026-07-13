@@ -42,7 +42,7 @@ variable "enable" {
 }
 
 locals {
-  base = trimsuffix(var.function_url, "/")
+  base       = trimsuffix(var.function_url, "/")
   trades_uid = "${var.app_name}-trades"
   skips_uid  = "${var.app_name}-skips"
 }

@@ -178,10 +178,10 @@ module "grafana_dashboard" {
   source = "./modules/grafana-dashboard"
   count  = var.enable_grafana && local.image_uri != "" ? 1 : 0
 
-  app_name           = var.name_prefix
-  folder_uid         = var.grafana_folder_uid
-  function_url       = module.lambda_worker[0].lambda_function_url
-  grafana_feed_token = var.grafana_feed_token
+  app_name            = var.name_prefix
+  folder_uid          = var.grafana_folder_uid
+  function_url        = module.lambda_worker[0].lambda_function_url
+  grafana_feed_token  = var.grafana_feed_token
   dashboard_json_path = "${path.module}/../grafana/dashboards/agent-pnl.json"
   enable              = true
 }
