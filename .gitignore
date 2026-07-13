@@ -1,0 +1,26 @@
+# Bytecode / caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Secrets / local data
+.env
+data/
+*.sqlite
+
+# OpenTofu
+infra/.terraform/
+infra/*.tfstate*
+infra/crash.log
+infra/.terraform.lock.hcl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deprecated copy
+day-trading-lab.DEPRECATED/

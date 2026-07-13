@@ -1,0 +1,39 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "How to connect",
+      "type": "text",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "## Trading lab journal\n\n1. Run `python -c \"from trading_lab.pipeline import run_vertical_slice; print(run_vertical_slice())\"`\n2. Export: `from trading_lab.journal import export_journal_csv; export_journal_csv('data/journal.sqlite','data/grafana')`\n3. In Grafana Cloud Free: add **Infinity** or **CSV** datasource pointing at `trades.csv`.\n4. Filter / group by **`found_by_agent`** for interactive agent views.\n\nPrimary attribution column: `found_by_agent`."
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["trading-lab"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "browser",
+  "title": "Trading Lab — Agent P&L",
+  "uid": "trading-lab-agent-pnl",
+  "version": 1
+}
