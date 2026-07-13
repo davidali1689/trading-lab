@@ -10,6 +10,14 @@ terraform {
       version = ">= 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "platform-tfstate-b667becb"
+    key            = "apps/trading-lab/dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "platform-tflock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
