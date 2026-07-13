@@ -14,7 +14,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
-
 from typing import Literal
 
 from trading_lab.catalysts.types import CatalystKind, CatalystSignal
