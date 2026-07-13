@@ -45,14 +45,14 @@ $env:GRAFANA_AUTH = "glsa_..."
 Function URL:
 
 ```
-https://4yfzwjgwvyubbj7ygf322scwgi0xmeld.lambda-url.us-east-1.on.aws/
+https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws/
 ```
 
 Verify feed:
 
 ```powershell
 $token = "..." # GRAFANA_FEED_TOKEN
-Invoke-WebRequest "https://4yfzwjgwvyubbj7ygf322scwgi0xmeld.lambda-url.us-east-1.on.aws/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
 404 until first EOD/postmarket persist (or `POST /run` `{"phase":"eod","force":true}`).
