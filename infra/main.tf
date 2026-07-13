@@ -37,10 +37,43 @@ provider "aws" {
   }
 }
 
-# Dummy URL/auth when enable_grafana=false so plan works without Cloud credentials.
+# Prefer explicit TF_VAR_*; else load from Secrets Manager so GHA plan/apply
+# can refresh Infinity datasources without GitHub Grafana secrets.
+data "aws_secretsmanager_secret_version" "platform_grafana" {
+  secret_id = "platform-grafana-cloud"
+}
+
+data "aws_secretsmanager_secret_version" "vendor_keys" {
+  secret_id = "trading-lab-vendor-keys"
+}
+
+locals {
+  platform_grafana = jsondecode(data.aws_secretsmanager_secret_version.platform_grafana.secret_string)
+  vendor_keys      = jsondecode(data.aws_secretsmanager_secret_version.vendor_keys.secret_string)
+  grafana_url = trimspace(
+    var.grafana_url != "" ? var.grafana_url : try(local.platform_grafana["GRAFANA_CLOUD_URL"], "")
+  )
+  grafana_auth = trimspace(
+    var.grafana_auth != "" ? var.grafana_auth : try(local.platform_grafana["GRAFANA_SERVICE_ACCOUNT_TOKEN"], "")
+  )
+  grafana_feed_token = trimspace(
+    var.grafana_feed_token != "" ? var.grafana_feed_token : try(local.vendor_keys["GRAFANA_FEED_TOKEN"], "")
+  )
+  image_uri = var.image_uri != "" ? var.image_uri : (
+    var.ecr_repository_url != "" ? "${var.ecr_repository_url}:${var.image_tag}" : ""
+  )
+  common_tags = {
+    Project     = "trading-lab"
+    Environment = var.environment
+    CostCenter  = "trading-lab"
+    Client      = "internal"
+    ManagedBy   = "opentofu"
+  }
+}
+
 provider "grafana" {
-  url  = var.grafana_url != "" ? var.grafana_url : "https://grafana.invalid"
-  auth = var.grafana_auth != "" ? var.grafana_auth : "disabled"
+  url  = local.grafana_url != "" ? local.grafana_url : "https://grafana.invalid"
+  auth = local.grafana_auth != "" ? local.grafana_auth : "disabled"
 }
 
 variable "aws_region" {
@@ -87,7 +120,7 @@ variable "kill_switch" {
 variable "enable_grafana" {
   description = "Provision Infinity datasources + dashboard into platform Grafana Cloud."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "grafana_url" {
@@ -112,19 +145,6 @@ variable "grafana_feed_token" {
 variable "grafana_folder_uid" {
   type    = string
   default = "apps-trading-lab"
-}
-
-locals {
-  image_uri = var.image_uri != "" ? var.image_uri : (
-    var.ecr_repository_url != "" ? "${var.ecr_repository_url}:${var.image_tag}" : ""
-  )
-  common_tags = {
-    Project     = "trading-lab"
-    Environment = var.environment
-    CostCenter  = "trading-lab"
-    Client      = "internal"
-    ManagedBy   = "opentofu"
-  }
 }
 
 module "journal_bucket" {
@@ -182,7 +202,7 @@ module "grafana_dashboard" {
   app_name            = var.name_prefix
   folder_uid          = var.grafana_folder_uid
   function_url        = module.lambda_worker[0].lambda_function_url
-  grafana_feed_token  = var.grafana_feed_token
+  grafana_feed_token  = local.grafana_feed_token
   dashboard_json_path = "${path.module}/../grafana/dashboards/agent-pnl.json"
   enable              = true
 }

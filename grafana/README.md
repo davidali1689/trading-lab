@@ -35,9 +35,18 @@ grafana_feed_token = "..." # same as GRAFANA_FEED_TOKEN
 ```
 
 ```powershell
-$env:GRAFANA_URL  = "https://YOURSTACK.grafana.net"
-$env:GRAFANA_AUTH = "glsa_..."
-# TF_VAR_grafana_url / TF_VAR_grafana_auth also work
+## CI / Deploy
+
+GHA loads `GRAFANA_CLOUD_URL` + `GRAFANA_SERVICE_ACCOUNT_TOKEN` from Secrets Manager
+`platform-grafana-cloud`, and `GRAFANA_FEED_TOKEN` from `trading-lab-vendor-keys`.
+No GitHub Grafana secrets required. `enable_grafana` defaults to `true`.
+
+Local override still works:
+
+```powershell
+$env:TF_VAR_grafana_url  = "https://YOURSTACK.grafana.net"
+$env:TF_VAR_grafana_auth = "glsa_..."
+```
 ```
 
 3. Open folder **Apps / trading-lab** → dashboard **Trading Lab — Agent P&L**.
