@@ -183,8 +183,7 @@ def run_phase(body: PhaseRequest) -> PhaseResult:
                         "symbol": sym,
                         "swing_power_hour": power,
                         "detail": (
-                            "paper path needs USE_MOCK_BARS=false "
-                            "+ Alpaca keys in Secrets Manager"
+                            "paper path needs USE_MOCK_BARS=false + Alpaca keys in Secrets Manager"
                         ),
                     }
                 )
