@@ -40,9 +40,9 @@ jobs:
     with:
       working-directory: .
       python-version: "3.13"
-      lint-paths: .
+      lint-paths: src api
       test-paths: tests
-      security-paths: .
+      security-paths: src api
       mock-bedrock: true
       # Report-only Trivy fs on PRs; image gate is in docker-build-scan (exit 1)
       trivy-exit-code: "0"

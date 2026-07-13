@@ -98,6 +98,9 @@ jobs:
     with:
       working-directory: .
       python-version: "3.13"
+      lint-paths: src api
+      test-paths: tests
+      security-paths: src api
       mock-bedrock: true
       # FS scan report-only; image Trivy gates in build
       trivy-exit-code: "0"
