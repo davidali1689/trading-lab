@@ -25,7 +25,7 @@
       "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "## Trading Lab — Agent P&L\n\n1. Create Infinity datasources pointing at `GET /grafana/trades.csv` and `/grafana/skips.csv` with header `X-Grafana-Token`.\n2. Create CloudWatch datasource for namespace **TradingLab** (region us-east-1).\n3. Set datasource UIDs to `infinity-trades`, `infinity-skips`, and `cloudwatch` (or remount panels).\n4. Filter by **`$agent`** (`found_by_agent`). See `grafana/README.md`."
+        "content": "## Trading Lab — platform Grafana\n\nFolder **Apps/trading-lab**. Datasources: `trading-lab-trades`, `trading-lab-skips`, shared `cloudwatch`. Feed header `X-Grafana-Token`. See `grafana/README.md` and aws-foundation `modules/grafana-cloud`."
       }
     },
     {
@@ -33,7 +33,7 @@
       "type": "stat",
       "id": 2,
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 5 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
       "fieldConfig": {
         "defaults": { "unit": "short", "color": { "mode": "thresholds" } },
         "overrides": []
@@ -72,7 +72,7 @@
       "type": "stat",
       "id": 3,
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 5 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
@@ -106,7 +106,7 @@
       "type": "stat",
       "id": 4,
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 5 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-skips" },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-skips" },
       "fieldConfig": {
         "defaults": { "unit": "short" },
         "overrides": []
@@ -202,7 +202,7 @@
       "type": "table",
       "id": 7,
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
       "fieldConfig": {
         "defaults": { "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -243,7 +243,7 @@
       "type": "table",
       "id": 8,
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-skips" },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-skips" },
       "fieldConfig": {
         "defaults": { "custom": { "align": "auto", "filterable": true } },
         "overrides": []
@@ -265,10 +265,83 @@
           ]
         }
       ]
+    },
+    {
+      "title": "Ops — Lambda Errors",
+      "type": "timeseries",
+      "id": 9,
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 37 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 50 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": { "FunctionName": "trading-lab-worker" },
+          "statistic": "Sum",
+          "period": "60",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "Errors"
+        }
+      ]
+    },
+    {
+      "title": "Ops — Premarket alarm (Errors)",
+      "type": "timeseries",
+      "id": 10,
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 37 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": { "FunctionName": "trading-lab-worker" },
+          "statistic": "Sum",
+          "period": "300",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "WorkerErrors"
+        },
+        {
+          "refId": "B",
+          "namespace": "TradingLab",
+          "metricName": "TickCount",
+          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "statistic": "Sum",
+          "period": "300",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "TickCount"
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["trading-lab", "paper", "pnl"],
+  "tags": ["trading-lab", "paper", "pnl", "ops"],
   "templating": {
     "list": [
       {
@@ -292,5 +365,5 @@
   "timezone": "America/New_York",
   "title": "Trading Lab — Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 2
+  "version": 3
 }

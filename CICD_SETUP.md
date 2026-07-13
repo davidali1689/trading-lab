@@ -35,8 +35,8 @@ Unusual Whales stays off until you subscribe.
 
 ## Grafana
 
-See [`grafana/README.md`](grafana/README.md) — Cloud Free + Infinity CSV feed + CloudWatch `TradingLab` EMF.
-Dashboard: [`grafana/dashboards/agent-pnl.json`](grafana/dashboards/agent-pnl.json).
+Platform stack: `aws-foundation` `modules/grafana-cloud` (Cloud Free).
+App wiring: see [`grafana/README.md`](grafana/README.md). Orchestrator routes via **grafana-app** skill.
 
 ## Layout expected
 

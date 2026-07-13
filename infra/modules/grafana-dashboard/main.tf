@@ -1,0 +1,109 @@
+# App-owned Grafana: Infinity CSV feeds + dashboard into platform folder Apps/<app>.
+# Requires GRAFANA_URL + GRAFANA_AUTH (or variables). Feed token stays in app secrets.
+
+terraform {
+  required_providers {
+    grafana = {
+      source = "grafana/grafana"
+    }
+  }
+}
+
+variable "app_name" {
+  type    = string
+  default = "trading-lab"
+}
+
+variable "folder_uid" {
+  description = "Platform folder UID (apps-<app>)."
+  type        = string
+  default     = "apps-trading-lab"
+}
+
+variable "function_url" {
+  description = "Lambda Function URL base (trailing slash optional)."
+  type        = string
+}
+
+variable "grafana_feed_token" {
+  description = "X-Grafana-Token value (from trading-lab-vendor-keys)."
+  type        = string
+  sensitive   = true
+}
+
+variable "dashboard_json_path" {
+  description = "Path to dashboard JSON file."
+  type        = string
+}
+
+variable "enable" {
+  type    = bool
+  default = true
+}
+
+locals {
+  base = trimsuffix(var.function_url, "/")
+  trades_uid = "${var.app_name}-trades"
+  skips_uid  = "${var.app_name}-skips"
+}
+
+resource "grafana_data_source" "trades" {
+  count = var.enable ? 1 : 0
+
+  type = "yesoreyeram-infinity-datasource"
+  name = "${var.app_name} trades CSV"
+  uid  = local.trades_uid
+  url  = "${local.base}/grafana/trades.csv"
+
+  json_data_encoded = jsonencode({
+    auth_method = "apiKey"
+    apiKeyKey   = "X-Grafana-Token"
+    apiKeyType  = "header"
+  })
+  secure_json_data_encoded = jsonencode({
+    apiKeyValue = var.grafana_feed_token
+  })
+}
+
+resource "grafana_data_source" "skips" {
+  count = var.enable ? 1 : 0
+
+  type = "yesoreyeram-infinity-datasource"
+  name = "${var.app_name} skips CSV"
+  uid  = local.skips_uid
+  url  = "${local.base}/grafana/skips.csv"
+
+  json_data_encoded = jsonencode({
+    auth_method = "apiKey"
+    apiKeyKey   = "X-Grafana-Token"
+    apiKeyType  = "header"
+  })
+  secure_json_data_encoded = jsonencode({
+    apiKeyValue = var.grafana_feed_token
+  })
+}
+
+resource "grafana_dashboard" "agent_pnl" {
+  count = var.enable ? 1 : 0
+
+  folder      = var.folder_uid
+  config_json = file(var.dashboard_json_path)
+  overwrite   = true
+
+  depends_on = [
+    grafana_data_source.trades,
+    grafana_data_source.skips,
+  ]
+}
+
+output "trades_uid" {
+  value = try(grafana_data_source.trades[0].uid, local.trades_uid)
+}
+
+output "skips_uid" {
+  value = try(grafana_data_source.skips[0].uid, local.skips_uid)
+}
+
+output "dashboard_uid" {
+  value = try(grafana_dashboard.agent_pnl[0].uid, "trading-lab-agent-pnl")
+}

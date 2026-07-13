@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 5.0"
     }
+    grafana = {
+      source  = "grafana/grafana"
+      version = "~> 3.25"
+    }
   }
 
   backend "s3" {
@@ -31,6 +35,12 @@ provider "aws" {
       Client      = "internal"
     }
   }
+}
+
+# Dummy URL/auth when enable_grafana=false so plan works without Cloud credentials.
+provider "grafana" {
+  url  = var.grafana_url != "" ? var.grafana_url : "https://grafana.invalid"
+  auth = var.grafana_auth != "" ? var.grafana_auth : "disabled"
 }
 
 variable "aws_region" {
@@ -71,6 +81,36 @@ variable "watchlist" {
 variable "kill_switch" {
   type    = string
   default = "0"
+}
+
+variable "enable_grafana" {
+  description = "Provision Infinity datasources + dashboard into platform Grafana Cloud."
+  type        = bool
+  default     = false
+}
+
+variable "grafana_url" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "grafana_auth" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "grafana_feed_token" {
+  description = "Same value as Secrets Manager GRAFANA_FEED_TOKEN."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "grafana_folder_uid" {
+  type    = string
+  default = "apps-trading-lab"
 }
 
 locals {
@@ -134,6 +174,18 @@ module "market_scheduler" {
   common_tags          = local.common_tags
 }
 
+module "grafana_dashboard" {
+  source = "./modules/grafana-dashboard"
+  count  = var.enable_grafana && local.image_uri != "" ? 1 : 0
+
+  app_name           = var.name_prefix
+  folder_uid         = var.grafana_folder_uid
+  function_url       = module.lambda_worker[0].lambda_function_url
+  grafana_feed_token = var.grafana_feed_token
+  dashboard_json_path = "${path.module}/../grafana/dashboards/agent-pnl.json"
+  enable              = true
+}
+
 output "lambda_function_url" {
   value = try(module.lambda_worker[0].lambda_function_url, null)
 }
@@ -160,4 +212,12 @@ output "premarket_alarm" {
 
 output "auto_run_note" {
   value = "ET Mon-Fri: 08:00 prep, 09:30-16:00 ticks, 16:05 eod, 18:00 next-day prep. Entries RTH only."
+}
+
+output "grafana_trades_uid" {
+  value = try(module.grafana_dashboard[0].trades_uid, null)
+}
+
+output "grafana_skips_uid" {
+  value = try(module.grafana_dashboard[0].skips_uid, null)
 }

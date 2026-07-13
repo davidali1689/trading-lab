@@ -1,89 +1,68 @@
 # Grafana — trading-lab
 
-Near-live RTH activity + daily journal P&L in **Grafana Cloud Free**.
-Agent Factory / Mission Control is unrelated — do not wire it here.
+Uses the **platform** Grafana Cloud Free stack (`aws-foundation` `modules/grafana-cloud`), not a per-app Cloud org.
+Agent Factory / Mission Control is unrelated.
 
 ## Architecture
 
-| Layer | Source | Refresh |
-|-------|--------|---------|
-| Tick activity | CloudWatch EMF namespace `TradingLab` (`TickCount`, `Orders`, `Skips`) | ~1 min during RTH |
-| P&L / skips | S3 `grafana/latest/{trades,skips}.csv` via Function URL | After EOD 16:05 / postmarket 18:00 ET |
+| Layer | Owner | Detail |
+|-------|--------|--------|
+| Cloud org, folder `Apps/trading-lab`, shared `cloudwatch` | aws-foundation | UID `apps-trading-lab` |
+| Infinity `trading-lab-trades` / `trading-lab-skips` + dashboard | this repo | `infra/modules/grafana-dashboard` |
+| CSV feed + EMF | Lambda | `/grafana/*.csv`, namespace `TradingLab` |
 
-## One-time Grafana Cloud setup
+## One-time (platform)
 
-1. Create a [Grafana Cloud Free](https://grafana.com/products/cloud/) stack.
-2. Install plugin **Infinity** (`yesoreyeram-infinity-datasource`).
-3. Add **CloudWatch** datasource (AWS account with read on `TradingLab` metrics, region `us-east-1`).
-4. Add two Infinity datasources (UIDs must match the dashboard, or remount panels):
+Follow [`aws-foundation/modules/grafana-cloud/README.md`](../../aws-foundation/modules/grafana-cloud/README.md):
 
-| UID | URL |
-|-----|-----|
-| `infinity-trades` | `https://<function-url>/grafana/trades.csv` |
-| `infinity-skips` | `https://<function-url>/grafana/skips.csv` |
+1. Grafana Cloud Free stack + service account token → secret `platform-grafana-cloud`
+2. Link AWS account for CloudWatch
+3. Foundation apply with `enable_grafana_provisioning = true` and `GRAFANA_URL` / `GRAFANA_AUTH`
 
-HTTP headers on both:
+## App wiring
 
+1. Seed **feed** token in `trading-lab-vendor-keys` (merge; do not wipe Alpaca keys):
+
+```json
+"GRAFANA_FEED_TOKEN": "long-random-string"
 ```
-X-Grafana-Token: <same value as Secrets Manager GRAFANA_FEED_TOKEN>
+
+2. Deploy apply with Grafana enabled (local or CI secrets — do not commit):
+
+```hcl
+enable_grafana     = true
+grafana_feed_token = "..." # same as GRAFANA_FEED_TOKEN
 ```
 
-Parse `pnl_usd`, `entry_px`, `exit_px`, `qty` as **number**. Time fields: `entry_ts` / `exit_ts` / `ts` (ISO8601).
+```powershell
+$env:GRAFANA_URL  = "https://YOURSTACK.grafana.net"
+$env:GRAFANA_AUTH = "glsa_..."
+# TF_VAR_grafana_url / TF_VAR_grafana_auth also work
+```
 
-5. Import [`dashboards/agent-pnl.json`](dashboards/agent-pnl.json).
-6. Filter panels with template variable **`$agent`** (`found_by_agent`).
+3. Open folder **Apps / trading-lab** → dashboard **Trading Lab — Agent P&L**.
 
-Function URL (prod):
+Function URL:
 
 ```
 https://4yfzwjgwvyubbj7ygf322scwgi0xmeld.lambda-url.us-east-1.on.aws/
 ```
 
-## Seed the feed token
-
-Keep Alpaca keys; add a random token:
-
-```powershell
-# merge with existing secret values — do not wipe Alpaca keys
-aws secretsmanager get-secret-value --secret-id trading-lab-vendor-keys --query SecretString --output text
-# then put-secret-value including GRAFANA_FEED_TOKEN
-```
-
-Example shape:
-
-```json
-{
-  "ALPACA_API_KEY": "PK...",
-  "ALPACA_API_SECRET": "...",
-  "ALPACA_PAPER": "true",
-  "FINNHUB_API_KEY": "",
-  "UNUSUAL_WHALES_API_KEY": "",
-  "GRAFANA_FEED_TOKEN": "long-random-string"
-}
-```
-
-Lambda hydrates `GRAFANA_FEED_TOKEN` from `SECRET_ARN` on cold start.
-
-## Verify feed
+Verify feed:
 
 ```powershell
 $token = "..." # GRAFANA_FEED_TOKEN
-$base = "https://4yfzwjgwvyubbj7ygf322scwgi0xmeld.lambda-url.us-east-1.on.aws"
-Invoke-WebRequest "$base/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "https://4yfzwjgwvyubbj7ygf322scwgi0xmeld.lambda-url.us-east-1.on.aws/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
-401 = bad/missing token. 404 = no EOD export yet (force persist after a tick day, or `POST /run` with `{"phase":"eod","force":true}`).
+404 until first EOD/postmarket persist (or `POST /run` `{"phase":"eod","force":true}`).
 
-## Local export (optional)
+## Conventions (new apps)
 
-```powershell
-uv run python -c "from trading_lab.journal import export_journal_csv; print(export_journal_csv('data/journal.sqlite','data/grafana'))"
-```
+| Item | Pattern |
+|------|---------|
+| Folder | `apps-<app>` |
+| Infinity | `<app>-trades`, `<app>-skips` |
+| Shared CW | `cloudwatch` |
 
-## CloudWatch metrics
-
-Emitted on each RTH tick summary:
-
-- Namespace: `TradingLab`
-- Dimensions: `symbol`, `agent`, `status`
-- Metrics: `TickCount`, `Orders`, `Skips`
+Use the **grafana-app** skill in `dev-agent-team`.
