@@ -34,7 +34,9 @@ def test_broker_submit_bracket(monkeypatch):
     monkeypatch.setenv("ALPACA_API_SECRET", "SK")
     monkeypatch.setenv("ALPACA_PAPER", "true")
 
-    broker = AlpacaPaperBroker(api_key="PK", api_secret="SK", base_url="https://paper-api.alpaca.markets")
+    broker = AlpacaPaperBroker(
+        api_key="PK", api_secret="SK", base_url="https://paper-api.alpaca.markets"
+    )
     intent = TradeIntent(
         found_by_agent="large_cap_sniper",
         symbol="AAPL",

@@ -26,6 +26,7 @@ resource "aws_secretsmanager_secret_version" "vendor_keys" {
     ALPACA_PAPER           = "true"
     FINNHUB_API_KEY        = ""
     UNUSUAL_WHALES_API_KEY = ""
+    GRAFANA_FEED_TOKEN     = ""
   })
 
   lifecycle {

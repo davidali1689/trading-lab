@@ -22,7 +22,8 @@ aws secretsmanager put-secret-value --secret-id trading-lab-vendor-keys --secret
   "ALPACA_API_SECRET":"...",
   "ALPACA_PAPER":"true",
   "FINNHUB_API_KEY":"",
-  "UNUSUAL_WHALES_API_KEY":"..."
+  "UNUSUAL_WHALES_API_KEY":"",
+  "GRAFANA_FEED_TOKEN":"long-random-string"
 }'
 ```
 
@@ -32,11 +33,17 @@ Then set `USE_MOCK_BARS=false` on the Lambda (OpenTofu default) so ticks use
 Alpaca IEX bars + **Alpaca paper** bracket orders against the $100k sim account.
 Unusual Whales stays off until you subscribe.
 
+## Grafana
+
+See [`grafana/README.md`](grafana/README.md) — Cloud Free + Infinity CSV feed + CloudWatch `TradingLab` EMF.
+Dashboard: [`grafana/dashboards/agent-pnl.json`](grafana/dashboards/agent-pnl.json).
+
 ## Layout expected
 
 - `api/` FastAPI app
 - `tests/`
 - `infra/` OpenTofu (lambda-worker + vendor-secrets)
+- `grafana/` dashboards + setup notes
 - `Dockerfile` (Lambda Web Adapter)
 - `pyproject.toml` + `uv.lock`
 

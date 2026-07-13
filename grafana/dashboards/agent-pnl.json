@@ -19,21 +19,278 @@
   "links": [],
   "panels": [
     {
-      "title": "How to connect",
+      "title": "Setup",
       "type": "text",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "## Trading lab journal\n\n1. Run `python -c \"from trading_lab.pipeline import run_vertical_slice; print(run_vertical_slice())\"`\n2. Export: `from trading_lab.journal import export_journal_csv; export_journal_csv('data/journal.sqlite','data/grafana')`\n3. In Grafana Cloud Free: add **Infinity** or **CSV** datasource pointing at `trades.csv`.\n4. Filter / group by **`found_by_agent`** for interactive agent views.\n\nPrimary attribution column: `found_by_agent`."
+        "content": "## Trading Lab — Agent P&L\n\n1. Create Infinity datasources pointing at `GET /grafana/trades.csv` and `/grafana/skips.csv` with header `X-Grafana-Token`.\n2. Create CloudWatch datasource for namespace **TradingLab** (region us-east-1).\n3. Set datasource UIDs to `infinity-trades`, `infinity-skips`, and `cloudwatch` (or remount panels).\n4. Filter by **`$agent`** (`found_by_agent`). See `grafana/README.md`."
       }
+    },
+    {
+      "title": "Trade count",
+      "type": "stat",
+      "id": 2,
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 5 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" } },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "csv",
+          "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET",
+            "headers": [{ "key": "X-Grafana-Token", "value": "${GRAFANA_FEED_TOKEN}" }]
+          },
+          "format": "table",
+          "root_selector": "",
+          "columns": [],
+          "filters": [
+            {
+              "field": "found_by_agent",
+              "operator": "=",
+              "value": "${agent}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sum pnl_usd",
+      "type": "stat",
+      "id": 3,
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 5 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "/^pnl_usd$/", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "csv",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "columns": [
+            { "selector": "pnl_usd", "text": "pnl_usd", "type": "number" },
+            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Skip count",
+      "type": "stat",
+      "id": 4,
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 5 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-skips" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "csv",
+          "source": "url",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "RTH TickCount (CloudWatch)",
+      "type": "timeseries",
+      "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 40 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "TradingLab",
+          "metricName": "TickCount",
+          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "statistic": "Sum",
+          "period": "60",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0
+        }
+      ]
+    },
+    {
+      "title": "Orders vs Skips (CloudWatch)",
+      "type": "timeseries",
+      "id": 6,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "TradingLab",
+          "metricName": "Orders",
+          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "statistic": "Sum",
+          "period": "60",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "Orders"
+        },
+        {
+          "refId": "B",
+          "namespace": "TradingLab",
+          "metricName": "Skips",
+          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "statistic": "Sum",
+          "period": "60",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "Skips"
+        }
+      ]
+    },
+    {
+      "title": "Trades",
+      "type": "table",
+      "id": 7,
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 17 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-trades" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "pnl_usd" },
+            "properties": [{ "id": "unit", "value": "currencyUSD" }, { "id": "decimals", "value": 2 }]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false },
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "csv",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "columns": [
+            { "selector": "entry_ts", "text": "entry_ts", "type": "timestamp" },
+            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" },
+            { "selector": "symbol", "text": "symbol", "type": "string" },
+            { "selector": "side", "text": "side", "type": "string" },
+            { "selector": "entry_px", "text": "entry_px", "type": "number" },
+            { "selector": "exit_px", "text": "exit_px", "type": "number" },
+            { "selector": "qty", "text": "qty", "type": "number" },
+            { "selector": "pnl_usd", "text": "pnl_usd", "type": "number" },
+            { "selector": "exit_reason", "text": "exit_reason", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Skips",
+      "type": "table",
+      "id": 8,
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity-skips" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "overrides": []
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "csv",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "columns": [
+            { "selector": "ts", "text": "ts", "type": "timestamp" },
+            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" },
+            { "selector": "symbol", "text": "symbol", "type": "string" },
+            { "selector": "skip_reason", "text": "skip_reason", "type": "string" },
+            { "selector": "detail", "text": "detail", "type": "string" }
+          ]
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["trading-lab"],
-  "templating": { "list": [] },
-  "time": { "from": "now-30d", "to": "now" },
-  "timezone": "browser",
+  "tags": ["trading-lab", "paper", "pnl"],
+  "templating": {
+    "list": [
+      {
+        "name": "agent",
+        "label": "Agent",
+        "type": "custom",
+        "query": "large_cap_sniper,speculative_sniper,swing_momentum,All",
+        "current": { "selected": true, "text": "large_cap_sniper", "value": "large_cap_sniper" },
+        "options": [
+          { "selected": true, "text": "large_cap_sniper", "value": "large_cap_sniper" },
+          { "selected": false, "text": "speculative_sniper", "value": "speculative_sniper" },
+          { "selected": false, "text": "swing_momentum", "value": "swing_momentum" },
+          { "selected": false, "text": "All", "value": ".*" }
+        ],
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "America/New_York",
   "title": "Trading Lab — Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 1
+  "version": 2
 }

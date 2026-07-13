@@ -12,11 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
+from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
 from trading_lab.journal.persist import persist_journal_to_s3
+from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.paper_tick import run_paper_tick
 from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
@@ -106,6 +108,49 @@ def status() -> dict[str, Any]:
     }
 
 
+def _require_grafana_token(x_grafana_token: str | None) -> None:
+    if not token_matches(x_grafana_token):
+        raise HTTPException(status_code=401, detail="invalid or missing X-Grafana-Token")
+
+
+@app.get("/grafana/trades.csv")
+def grafana_trades_csv(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> Response:
+    _require_grafana_token(x_grafana_token)
+    try:
+        body, content_type = fetch_latest_csv("trades")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(content=body, media_type=content_type)
+
+
+@app.get("/grafana/skips.csv")
+def grafana_skips_csv(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> Response:
+    _require_grafana_token(x_grafana_token)
+    try:
+        body, content_type = fetch_latest_csv("skips")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(content=body, media_type=content_type)
+
+
+def _emit_from_summary(summary: dict[str, Any]) -> None:
+    emit_tick_metric(
+        symbol=str(summary.get("symbol", "")),
+        status=str(summary.get("status", summary.get("detail", "UNKNOWN"))),
+        agent=str(summary.get("found_by_agent", "large_cap_sniper")),
+        orders=int(summary.get("orders", 0) or 0),
+        skips=int(summary.get("skips", 0) or 0),
+    )
+
+
 @app.post("/run")
 def run_phase(body: PhaseRequest) -> PhaseResult:
     holiday = _holiday_noop(body.phase)
@@ -171,11 +216,13 @@ def run_phase(body: PhaseRequest) -> PhaseResult:
                 )
                 summary["swing_power_hour"] = power
                 summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=use_mock)
+                _emit_from_summary(summary)
                 results.append(summary)
             elif _mode() == RunMode.PAPER and has_alpaca_keys():
                 summary = run_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
                 summary["swing_power_hour"] = power
                 summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=False)
+                _emit_from_summary(summary)
                 results.append(summary)
             else:
                 results.append(

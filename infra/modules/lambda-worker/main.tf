@@ -74,7 +74,12 @@ resource "aws_iam_role_policy" "journal_s3" {
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
-      Action = ["s3:PutObject", "s3:AbortMultipartUpload", "s3:ListBucket"]
+      Action = [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListBucket",
+      ]
       Resource = [
         var.journal_bucket_arn,
         "${var.journal_bucket_arn}/*",
