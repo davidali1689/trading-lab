@@ -61,10 +61,10 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 resource "aws_iam_role_policy" "journal_s3" {
-  count = var.journal_bucket_arn != "" ? 1 : 0
-  name  = "${local.lambda_name}-journal-s3"
-  role  = aws_iam_role.lambda.id
+  name = "${local.lambda_name}-journal-s3"
+  role = aws_iam_role.lambda.id
 
+  # Always attach when module is used — count on ARN fails plan (known after apply).
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{

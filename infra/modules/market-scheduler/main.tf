@@ -50,11 +50,13 @@ resource "aws_iam_role_policy" "scheduler_invoke" {
 }
 
 resource "aws_lambda_permission" "scheduler" {
-  statement_id  = "AllowEventBridgeScheduler"
+  for_each = aws_scheduler_schedule.market
+
+  statement_id  = "AllowScheduler-${each.key}"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "scheduler.amazonaws.com"
-  source_arn    = "arn:aws:scheduler:*:*:schedule/${var.name_prefix}-*"
+  source_arn    = each.value.arn
 }
 
 locals {
