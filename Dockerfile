@@ -9,6 +9,11 @@ FROM ${PYTHON_IMAGE}
 
 WORKDIR /app
 
+# Patch OS packages before app install (Trivy HIGH/CRITICAL on slim bases).
+RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
+
 # Lambda Web Adapter — inert for local `docker run`; active on Lambda.
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 ENV PORT=8000
