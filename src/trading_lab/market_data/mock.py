@@ -1,6 +1,6 @@
 """Deterministic synthetic bars for local vertical-slice / tests (no API keys)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from decimal import Decimal
 
 from trading_lab.market_data.types import Bar, BarRequest
@@ -19,7 +19,7 @@ class MockMarketData:
             o = px
             c = px + Decimal("0.15")
             h = c + Decimal("0.05")
-            l = o - Decimal("0.02")
+            low = o - Decimal("0.02")
             vol = Decimal("2000000") if i % 20 == 0 else Decimal("800000")
             vwap = (o + c) / 2
             bars.append(
@@ -28,7 +28,7 @@ class MockMarketData:
                     ts=ts,
                     open=o,
                     high=h,
-                    low=l,
+                    low=low,
                     close=c,
                     volume=vol,
                     vwap=vwap,

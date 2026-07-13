@@ -37,11 +37,7 @@ class HoldPlan(BaseModel):
 
     @model_validator(mode="after")
     def _ordered(self) -> "HoldPlan":
-        if not (
-            self.min_hold_sessions
-            <= self.typical_hold_sessions
-            <= self.max_hold_sessions
-        ):
+        if not (self.min_hold_sessions <= self.typical_hold_sessions <= self.max_hold_sessions):
             raise ValueError(
                 "Require min_hold_sessions <= typical_hold_sessions <= max_hold_sessions"
             )

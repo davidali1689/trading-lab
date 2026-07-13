@@ -36,12 +36,10 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="trading-lab", version="0.2.0")
 
-JOURNAL_PATH = os.environ.get("JOURNAL_PATH", "/tmp/trading-lab-journal.sqlite")
+JOURNAL_PATH = os.environ.get("JOURNAL_PATH", "/tmp/trading-lab-journal.sqlite")  # nosec B108
 TRADING_MODE = os.environ.get("TRADING_MODE", "paper")
 SYMBOLS = [
-    s.strip().upper()
-    for s in os.environ.get("WATCHLIST", "AAPL,MSFT,SPY").split(",")
-    if s.strip()
+    s.strip().upper() for s in os.environ.get("WATCHLIST", "AAPL,MSFT,SPY").split(",") if s.strip()
 ]
 
 
@@ -248,7 +246,5 @@ def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
     else:
         payload = event if isinstance(event, dict) else {}
     phase = str(payload.get("phase", "status"))
-    result = run_phase(
-        PhaseRequest(phase=phase, force=bool(payload.get("force", False)))
-    )
+    result = run_phase(PhaseRequest(phase=phase, force=bool(payload.get("force", False))))
     return {"statusCode": 200, "body": result.model_dump_json()}

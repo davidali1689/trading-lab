@@ -12,7 +12,7 @@ Trading ticks until 18:00 does NOT help next-day setups; postmarket prep does.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 

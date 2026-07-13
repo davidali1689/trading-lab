@@ -52,7 +52,7 @@ class AlpacaMarketData:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
                 payload = json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")

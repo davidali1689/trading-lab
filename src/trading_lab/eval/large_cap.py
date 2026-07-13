@@ -6,8 +6,7 @@ from decimal import Decimal
 
 from trading_lab.agents.sniper.decision import SniperDecision, TradeMap
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER, LargeCapSniperSpec
-from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED, SniperStatus
-from trading_lab.agents.sniper.shared_execution import scale_out_price
+from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED, SniperStatus, scale_out_price
 from trading_lab.market_data.types import SessionContext
 from trading_lab.schemas.trades import RunMode, Side
 
@@ -16,9 +15,7 @@ def _rvol(bars: list, lookback: int = 20) -> Decimal | None:
     if len(bars) < lookback + 1:
         return None
     last = bars[-1].volume
-    avg = sum((b.volume for b in bars[-(lookback + 1) : -1]), Decimal("0")) / Decimal(
-        lookback
-    )
+    avg = sum((b.volume for b in bars[-(lookback + 1) : -1]), Decimal("0")) / Decimal(lookback)
     if avg == 0:
         return None
     return last / avg

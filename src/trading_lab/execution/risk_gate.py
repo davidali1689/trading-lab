@@ -34,10 +34,7 @@ class RiskGate(BaseModel):
     state: RiskGateState = Field(default_factory=RiskGateState)
 
     def check(self, intent: TradeIntent, now: datetime) -> RiskDecision:
-        if (
-            self.state.cooling_off_until is not None
-            and now < self.state.cooling_off_until
-        ):
+        if self.state.cooling_off_until is not None and now < self.state.cooling_off_until:
             return RiskDecision(
                 allowed=False,
                 skip_reason=SkipReason.COOLING_OFF,

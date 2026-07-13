@@ -20,7 +20,6 @@ from trading_lab.schemas.trades import (
     Side,
     SkipEvent,
     SkipReason,
-    TradeIntent,
     TradeRecord,
 )
 
@@ -88,14 +87,6 @@ def run_vertical_slice(
 
         intent = decision.to_trade_intent(qty)
         assert intent is not None
-        # Ensure attribution key
-        intent = TradeIntent(
-            **{
-                **intent.model_dump(),
-                "found_by_agent": agent,
-                "qty": qty,
-            }
-        )
         gate = risk.check(intent, bar.ts)
         if not gate.allowed:
             skip = SkipEvent(

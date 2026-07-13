@@ -80,9 +80,7 @@ class AgentAccuracyReport(BaseModel):
     def selectivity(self) -> Decimal:
         if self.setup_fires == 0:
             return Decimal("0")
-        return (Decimal(self.trades_taken) / Decimal(self.setup_fires)) * Decimal(
-            "100"
-        )
+        return (Decimal(self.trades_taken) / Decimal(self.setup_fires)) * Decimal("100")
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -107,9 +105,7 @@ class AgentAccuracyReport(BaseModel):
     def false_setup_rate(self) -> Decimal:
         if self.trades_taken == 0:
             return Decimal("0")
-        return (Decimal(self.false_setup_count) / Decimal(self.trades_taken)) * Decimal(
-            "100"
-        )
+        return (Decimal(self.false_setup_count) / Decimal(self.trades_taken)) * Decimal("100")
 
 
 class BacktestReport(BaseModel):

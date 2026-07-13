@@ -16,7 +16,8 @@ def export_journal_csv(db_path: str | Path, out_dir: str | Path) -> dict[str, Pa
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         for table in ("trades", "skips"):
-            rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+            # table names are fixed literals, not user input
+            rows = conn.execute(f"SELECT * FROM {table}").fetchall()  # nosec B608
             path = out_dir / f"{table}.csv"
             if not rows:
                 path.write_text("", encoding="utf-8")

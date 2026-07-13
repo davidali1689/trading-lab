@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from datetime import date
 
-
 # Observed / full closes — extend each year
 NYSE_HOLIDAYS: set[date] = {
     # 2026

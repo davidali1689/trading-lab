@@ -5,8 +5,8 @@ from typing import Any
 from trading_lab.agents.common.execution import COMMON_EXECUTION
 from trading_lab.agents.sniper import (
     LARGE_CAP_SNIPER,
-    SPECULATIVE_SNIPER,
     SNIPER_SHARED,
+    SPECULATIVE_SNIPER,
 )
 from trading_lab.agents.swing import SWING_MOMENTUM, SWING_SHARED
 
