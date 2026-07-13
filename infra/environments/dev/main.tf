@@ -52,9 +52,10 @@ variable "image_uri" {
   default = ""
 }
 
-variable "watchlist" {
-  type    = string
-  default = "AAPL,MSFT,SPY"
+variable "watchlist_size" {
+  description = "Max symbols from daily Alpaca movers/actives scan (no hardcoded names)."
+  type        = number
+  default     = 12
 }
 
 variable "kill_switch" {
@@ -92,7 +93,7 @@ module "lambda_worker" {
   environment_variables = {
     TRADING_MODE      = "paper"
     USE_MOCK_BARS     = "true"
-    WATCHLIST         = var.watchlist
+    WATCHLIST_SIZE    = tostring(var.watchlist_size)
     JOURNAL_PATH      = "/tmp/trading-lab-journal.sqlite"
     JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
     KILL_SWITCH       = var.kill_switch

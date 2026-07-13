@@ -73,9 +73,10 @@ variable "image_uri" {
   default = ""
 }
 
-variable "watchlist" {
-  type    = string
-  default = "AAPL,MSFT,SPY"
+variable "watchlist_size" {
+  description = "Max symbols from daily Alpaca movers/actives scan (no hardcoded names)."
+  type        = number
+  default     = 12
 }
 
 variable "kill_switch" {
@@ -146,14 +147,14 @@ module "lambda_worker" {
   ecr_repository_url = var.ecr_repository_url != "" ? var.ecr_repository_url : split(":", local.image_uri)[0]
   image_tag          = var.image_tag
   lambda_memory      = 512
-  lambda_timeout     = 120
+  lambda_timeout     = 180
   common_tags        = local.common_tags
   journal_bucket_arn = module.journal_bucket.bucket_arn
   vendor_secret_arn  = module.vendor_secrets.secret_arn
   environment_variables = {
     TRADING_MODE      = "paper"
     USE_MOCK_BARS     = "false"
-    WATCHLIST         = var.watchlist
+    WATCHLIST_SIZE    = tostring(var.watchlist_size)
     JOURNAL_PATH      = "/tmp/trading-lab-journal.sqlite"
     JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
     KILL_SWITCH       = var.kill_switch

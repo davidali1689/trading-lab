@@ -35,6 +35,11 @@ from trading_lab.schedule import (
 )
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode
+from trading_lab.selection.watchlist import (
+    build_daily_watchlist,
+    get_watchlist,
+    save_watchlist,
+)
 
 logger = logging.getLogger("trading_lab.api")
 logging.basicConfig(level=logging.INFO)
@@ -46,9 +51,6 @@ app = FastAPI(title="trading-lab", version="0.2.0")
 
 JOURNAL_PATH = os.environ.get("JOURNAL_PATH", "/tmp/trading-lab-journal.sqlite")  # nosec B108
 TRADING_MODE = os.environ.get("TRADING_MODE", "paper")
-SYMBOLS = [
-    s.strip().upper() for s in os.environ.get("WATCHLIST", "AAPL,MSFT,SPY").split(",") if s.strip()
-]
 
 
 class PhaseRequest(BaseModel):
@@ -96,6 +98,7 @@ def health() -> dict[str, str]:
 
 @app.get("/status")
 def status() -> dict[str, Any]:
+    wl = get_watchlist()
     return {
         "clock_phase": phase_at().value,
         "sniper_ticks_allowed": sniper_ticks_allowed(),
@@ -103,7 +106,9 @@ def status() -> dict[str, Any]:
         "entries_enabled": entries_enabled(),
         "process_window": process_window_label(),
         "trading_mode": TRADING_MODE,
-        "watchlist": SYMBOLS,
+        "watchlist": wl.symbols,
+        "watchlist_source": wl.source,
+        "watchlist_detail": wl.detail,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -188,18 +193,21 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
 
     if phase == "premarket":
         Path(JOURNAL_PATH).parent.mkdir(parents=True, exist_ok=True)
+        wl = build_daily_watchlist()
+        persist_wl = save_watchlist(wl)
         detail = (
-            f"08:00 prep watchlist={SYMBOLS}; entries_enabled={entries_enabled()}; "
-            "no ENTERs until RTH"
+            f"08:00 prep watchlist={wl.symbols} source={wl.source} "
+            f"entries_enabled={entries_enabled()}; no ENTERs until RTH; "
+            f"scan={wl.detail}"
         )
         logger.info(detail)
-        # Metric for CW alarm: successful premarket
         print(json.dumps({"metric": "premarket_ok", "value": 1}))
         return PhaseResult(
             ok=True,
             phase=phase,
             clock_phase=clock.value,
             detail=detail,
+            results=[{"watchlist": wl.to_dict(), "persist": persist_wl}],
             ts=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -220,7 +228,20 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 detail=kill_switch_reason(),
                 ts=datetime.now(timezone.utc).isoformat(),
             )
-        symbols = [body.symbol] if body.symbol else SYMBOLS
+        if body.symbol:
+            symbols = [body.symbol.upper()]
+        else:
+            wl = get_watchlist()
+            symbols = wl.symbols
+            if not symbols:
+                return PhaseResult(
+                    ok=True,
+                    phase=phase,
+                    clock_phase=clock.value,
+                    detail=f"empty watchlist — no-op ({wl.detail or wl.source})",
+                    results=[{"watchlist_source": wl.source, "detail": wl.detail}],
+                    ts=datetime.now(timezone.utc).isoformat(),
+                )
         power = swing_power_hour()
         for sym in symbols:
             use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() == "true"
@@ -290,14 +311,21 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 # Still run prep at scheduled 18:00
                 pass
         persist = persist_journal_to_s3(JOURNAL_PATH)
+        wl = build_daily_watchlist()
+        persist_wl = save_watchlist(wl)
         next_day_notes = {
-            "tomorrow_watchlist": SYMBOLS,
-            "focus": "swing overnight holds + next open prep",
+            "tomorrow_watchlist": wl.symbols,
+            "watchlist": wl.to_dict(),
+            "watchlist_persist": persist_wl,
+            "focus": "dynamic candidates for next session — sniper gates at RTH",
             "no_entries_after_hours": True,
             "persist": persist,
         }
         results.append(next_day_notes)
-        detail = "18:00 postmarket next-day prep complete — process idle until 08:00"
+        detail = (
+            f"18:00 postmarket prep watchlist={wl.symbols} source={wl.source} "
+            f"({wl.detail}) — idle until 08:00"
+        )
         logger.info(detail)
         return PhaseResult(
             ok=True,
