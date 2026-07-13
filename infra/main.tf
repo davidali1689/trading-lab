@@ -112,13 +112,14 @@ module "lambda_worker" {
   vendor_secret_arn  = module.vendor_secrets.secret_arn
   environment_variables = {
     TRADING_MODE      = "paper"
-    USE_MOCK_BARS     = "true"
+    USE_MOCK_BARS     = "false"
     WATCHLIST         = var.watchlist
     JOURNAL_PATH      = "/tmp/trading-lab-journal.sqlite"
     JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
     KILL_SWITCH       = var.kill_switch
     TZ                = "UTC"
     SECRET_ARN        = module.vendor_secrets.secret_arn
+    ALPACA_PAPER      = "true"
   }
 }
 

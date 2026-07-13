@@ -28,7 +28,9 @@ aws secretsmanager put-secret-value --secret-id trading-lab-vendor-keys --secret
 
 Locally: copy `.env.example` → `.env` (leave `SECRET_ARN` unset).
 
-Then set `USE_MOCK_BARS=false` on the Lambda when ready for real paper data.
+Then set `USE_MOCK_BARS=false` on the Lambda (OpenTofu default) so ticks use
+Alpaca IEX bars + **Alpaca paper** bracket orders against the $100k sim account.
+Unusual Whales stays off until you subscribe.
 
 ## Layout expected
 

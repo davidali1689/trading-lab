@@ -45,7 +45,11 @@ def evaluate_swing_with_congress(
 
     port = _congress_port(use_mock=use_mock)
     since = congress_since(SWING_MOMENTUM.congress_lookback_days)
-    signals = port.signals_for(symbol, since=since)
+    signals = (
+        port.signals_for(symbol, since=since)
+        if SWING_MOMENTUM.congress_catalyst_enabled
+        else []
+    )
 
     ctx = SessionContext(
         symbol=symbol,
@@ -69,4 +73,5 @@ def evaluate_swing_with_congress(
         "congress_action": decision.meta.get("congress_action"),
         "reason": decision.reason,
         "source": SWING_MOMENTUM.congress_source,
+        "congress_enabled": SWING_MOMENTUM.congress_catalyst_enabled,
     }

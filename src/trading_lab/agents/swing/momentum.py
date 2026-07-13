@@ -46,8 +46,8 @@ class SwingMomentumSpec(BaseModel):
     ten_am_sniper_enabled: bool = True
     # 10AM: stock green while SPY/QQQ red
 
-    # Unusual Whales congress soft catalyst (never force ENTER)
-    congress_catalyst_enabled: bool = True
+    # Unusual Whales congress soft catalyst (off until API subscription)
+    congress_catalyst_enabled: bool = False
     congress_lookback_days: int = 30
     congress_soft_only: bool = True
     congress_source: str = "unusual_whales"
@@ -64,8 +64,9 @@ class SwingMomentumSpec(BaseModel):
             "10AM sniper: enter only if stock green while SPY/QQQ red.",
             "Hold: min 1 overnight; typical ~3 sessions; max 10 (see HoldPlan).",
             "Scan: flag RVOL>500% news breakouts / break-and-retest names.",
-            "Unusual Whales congress: soft only — buy raises priority; "
-            "sell can soft-skip ENTER→WATCH; never upgrades NO_TRADE→ENTER.",
+            "Unusual Whales congress: DISABLED by default (needs API sub). "
+            "When enabled: buy raises priority; sell soft-skips ENTER→WATCH; "
+            "never upgrades NO_TRADE→ENTER.",
             "Automation hooks (future): #MORNING_SCAN, #LOG_TRADE → sheet append.",
         ]
     )

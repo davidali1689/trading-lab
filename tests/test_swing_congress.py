@@ -51,6 +51,10 @@ def _congress(direction: str, symbol: str = "MSFT") -> CatalystSignal:
     )
 
 
+def _spec_uw_on():
+    return SWING_MOMENTUM.model_copy(update={"congress_catalyst_enabled": True})
+
+
 def test_swing_enter_without_congress():
     d = evaluate_swing_momentum(_ctx())
     assert d.status == SwingStatus.ENTER
@@ -59,7 +63,10 @@ def test_swing_enter_without_congress():
 
 
 def test_congress_buy_raises_priority_not_required():
-    d = evaluate_swing_momentum(_ctx(catalyst_signals=[_congress("buy")]))
+    d = evaluate_swing_momentum(
+        _ctx(catalyst_signals=[_congress("buy")]),
+        spec=_spec_uw_on(),
+    )
     assert d.status == SwingStatus.ENTER
     assert d.meta["priority"] >= 1
     assert d.meta["congress_action"] == "priority_boost_buy"
@@ -67,7 +74,10 @@ def test_congress_buy_raises_priority_not_required():
 
 
 def test_congress_sell_soft_skips_enter():
-    d = evaluate_swing_momentum(_ctx(catalyst_signals=[_congress("sell")]))
+    d = evaluate_swing_momentum(
+        _ctx(catalyst_signals=[_congress("sell")]),
+        spec=_spec_uw_on(),
+    )
     assert d.status == SwingStatus.WATCH
     assert d.trade_map is None
     assert d.meta["congress_action"] == "soft_skip_sell"
@@ -78,7 +88,8 @@ def test_congress_buy_never_forces_enter():
         _ctx(
             rvol=Decimal("0.5"),
             catalyst_signals=[_congress("buy")],
-        )
+        ),
+        spec=_spec_uw_on(),
     )
     assert d.status == SwingStatus.NO_TRADE
     assert d.meta.get("congress_action") == "ignored_no_setup"
@@ -106,7 +117,13 @@ def test_mock_unusual_whales_filter():
 
 
 def test_swing_spec_has_congress_knobs():
-    assert SWING_MOMENTUM.congress_catalyst_enabled is True
+    assert SWING_MOMENTUM.congress_catalyst_enabled is False
     assert SWING_MOMENTUM.congress_soft_only is True
     assert SWING_MOMENTUM.congress_source == "unusual_whales"
     assert any("Unusual Whales" in n for n in SWING_MOMENTUM.notes)
+
+
+def test_congress_disabled_ignores_signals():
+    d = evaluate_swing_momentum(_ctx(catalyst_signals=[_congress("sell")]))
+    assert d.status == SwingStatus.ENTER
+    assert d.meta.get("congress_action") is None

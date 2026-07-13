@@ -15,8 +15,9 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from trading_lab.config.secrets import load_secrets
+from trading_lab.config.secrets import has_alpaca_keys, load_secrets
 from trading_lab.journal.persist import persist_journal_to_s3
+from trading_lab.pipeline.paper_tick import run_paper_tick
 from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
 from trading_lab.schedule import (
@@ -171,13 +172,20 @@ def run_phase(body: PhaseRequest) -> PhaseResult:
                 summary["swing_power_hour"] = power
                 summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=use_mock)
                 results.append(summary)
+            elif _mode() == RunMode.PAPER and has_alpaca_keys():
+                summary = run_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
+                summary["swing_power_hour"] = power
+                summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=False)
+                results.append(summary)
             else:
                 results.append(
                     {
                         "symbol": sym,
                         "swing_power_hour": power,
-                        "swing_congress": evaluate_swing_with_congress(sym, use_mock=False),
-                        "detail": "set USE_MOCK_BARS=false + Alpaca keys for paper ticks",
+                        "detail": (
+                            "paper path needs USE_MOCK_BARS=false "
+                            "+ Alpaca keys in Secrets Manager"
+                        ),
                     }
                 )
         return PhaseResult(
