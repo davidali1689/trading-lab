@@ -6,6 +6,8 @@ from typing import Protocol
 
 from pydantic import BaseModel, Field
 
+from trading_lab.catalysts.types import CatalystSignal
+
 
 class Bar(BaseModel):
     symbol: str
@@ -45,3 +47,10 @@ class SessionContext(BaseModel):
     has_catalyst: bool = False
     rsi: Decimal | None = None
     float_shares: Decimal | None = None
+    # Swing / soft-catalyst fields (optional; evaluators compute when None)
+    price_above_8ema: bool | None = None
+    spy_or_qqq_above_20dma: bool | None = None
+    rs_vs_spy_qqq: bool | None = None
+    in_power_hour: bool | None = None
+    ten_am_divergence: bool | None = None
+    catalyst_signals: list[CatalystSignal] = Field(default_factory=list)

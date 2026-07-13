@@ -32,6 +32,7 @@ from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
 def test_vendors_locked():
     assert V1_VENDORS.primary_bars == VendorId.ALPACA
     assert V1_VENDORS.secondary_quotes == VendorId.FINNHUB
+    assert V1_VENDORS.soft_catalyst == VendorId.UNUSUAL_WHALES
 
 
 def test_agents_registered():

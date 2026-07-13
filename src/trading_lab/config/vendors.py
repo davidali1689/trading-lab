@@ -1,8 +1,9 @@
-"""Locked market-data vendors for v1.
+"""Locked market-data + catalyst vendors for v1.
 
-Primary: Alpaca IEX (paper + historical bars + realtime WS).
-Secondary: Finnhub (quotes / backup WS, personal free tier).
-All strategy code talks to MarketDataPort — never call vendors directly.
+Primary bars/realtime/paper: Alpaca IEX.
+Secondary quotes: Finnhub.
+Soft catalysts (congress): Unusual Whales — never forces ENTER.
+All strategy code talks to MarketDataPort / CatalystPort — never call vendors directly.
 """
 
 from enum import StrEnum
@@ -13,6 +14,7 @@ from pydantic import BaseModel, Field
 class VendorId(StrEnum):
     ALPACA = "alpaca"
     FINNHUB = "finnhub"
+    UNUSUAL_WHALES = "unusual_whales"
 
 
 class DataRole(StrEnum):
@@ -20,6 +22,7 @@ class DataRole(StrEnum):
     PRIMARY_REALTIME = "primary_realtime"
     SECONDARY_QUOTES = "secondary_quotes"
     PAPER_BROKER = "paper_broker"
+    SOFT_CATALYST = "soft_catalyst"
 
 
 class VendorLock(BaseModel):
@@ -29,6 +32,7 @@ class VendorLock(BaseModel):
     primary_realtime: VendorId = VendorId.ALPACA
     secondary_quotes: VendorId = VendorId.FINNHUB
     paper_broker: VendorId = VendorId.ALPACA
+    soft_catalyst: VendorId = VendorId.UNUSUAL_WHALES
     alpaca_feed: str = Field(
         default="iex",
         description="iex = free realtime; sip = paid fuller tape (later)",

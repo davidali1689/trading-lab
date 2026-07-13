@@ -1,6 +1,6 @@
 # CI/CD setup (trading-lab)
 
-Bootstrapped from cicd-templates @v1.0.1.
+Bootstrapped from cicd-templates @v1.0.6.
 
 ## GitHub
 
@@ -11,14 +11,33 @@ Bootstrapped from cicd-templates @v1.0.1.
 5. Ensure this repo is listed in `github_actions_deploy_repos` (`aws-cicd`).
    State keys: `apps/<app-name>/dev|feat-<slug>/terraform.tfstate`.
 
+## Vendor secrets (AWS Secrets Manager)
+
+OpenTofu creates secret shell **`trading-lab-vendor-keys`** and sets Lambda env `SECRET_ARN`.
+Values are **not** in git or TF state — seed after apply:
+
+```powershell
+aws secretsmanager put-secret-value --secret-id trading-lab-vendor-keys --secret-string '{
+  "ALPACA_API_KEY":"PK...",
+  "ALPACA_API_SECRET":"...",
+  "ALPACA_PAPER":"true",
+  "FINNHUB_API_KEY":"",
+  "UNUSUAL_WHALES_API_KEY":"..."
+}'
+```
+
+Locally: copy `.env.example` → `.env` (leave `SECRET_ARN` unset).
+
+Then set `USE_MOCK_BARS=false` on the Lambda when ready for real paper data.
+
 ## Layout expected
 
 - `api/` FastAPI app
 - `tests/`
-- `infra/` OpenTofu (lambda-container)
+- `infra/` OpenTofu (lambda-worker + vendor-secrets)
 - `Dockerfile` (Lambda Web Adapter)
 - `pyproject.toml` + `uv.lock`
 
 ## Pin
 
-Reusable workflows: `davidali1689/cicd-templates/...@v1.0.1`
+Reusable workflows: `davidali1689/cicd-templates/...@v1.0.6`

@@ -36,6 +36,11 @@ variable "journal_bucket_arn" {
   default = ""
 }
 
+variable "vendor_secret_arn" {
+  type    = string
+  default = ""
+}
+
 locals {
   lambda_name = "${var.name_prefix}-worker"
 }
@@ -74,6 +79,20 @@ resource "aws_iam_role_policy" "journal_s3" {
         var.journal_bucket_arn,
         "${var.journal_bucket_arn}/*",
       ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "vendor_secrets" {
+  name = "${local.lambda_name}-vendor-secrets"
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+      Resource = [var.vendor_secret_arn]
     }]
   })
 }

@@ -15,7 +15,9 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from trading_lab.config.secrets import load_secrets
 from trading_lab.journal.persist import persist_journal_to_s3
+from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
 from trading_lab.schedule import (
     entries_enabled,
@@ -33,6 +35,9 @@ from trading_lab.schemas.trades import RunMode
 
 logger = logging.getLogger("trading_lab.api")
 logging.basicConfig(level=logging.INFO)
+
+# Prefer AWS Secrets Manager (SECRET_ARN) over empty Lambda env for vendor keys.
+load_secrets(hydrate=True)
 
 app = FastAPI(title="trading-lab", version="0.2.0")
 
@@ -164,12 +169,18 @@ def run_phase(body: PhaseRequest) -> PhaseResult:
                     mode=RunMode.SIM if _mode() == RunMode.PAPER else _mode(),
                 )
                 summary["swing_power_hour"] = power
+                summary["swing_congress"] = evaluate_swing_with_congress(
+                    sym, use_mock=use_mock
+                )
                 results.append(summary)
             else:
                 results.append(
                     {
                         "symbol": sym,
                         "swing_power_hour": power,
+                        "swing_congress": evaluate_swing_with_congress(
+                            sym, use_mock=False
+                        ),
                         "detail": "set USE_MOCK_BARS=false + Alpaca keys for paper ticks",
                     }
                 )

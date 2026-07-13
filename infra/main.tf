@@ -92,6 +92,12 @@ module "journal_bucket" {
   common_tags = local.common_tags
 }
 
+module "vendor_secrets" {
+  source      = "./modules/vendor-secrets"
+  name_prefix = var.name_prefix
+  common_tags = local.common_tags
+}
+
 module "lambda_worker" {
   source = "./modules/lambda-worker"
   count  = local.image_uri != "" ? 1 : 0
@@ -103,6 +109,7 @@ module "lambda_worker" {
   lambda_timeout     = 120
   common_tags        = local.common_tags
   journal_bucket_arn = module.journal_bucket.bucket_arn
+  vendor_secret_arn  = module.vendor_secrets.secret_arn
   environment_variables = {
     TRADING_MODE      = "paper"
     USE_MOCK_BARS     = "true"
@@ -111,6 +118,7 @@ module "lambda_worker" {
     JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
     KILL_SWITCH       = var.kill_switch
     TZ                = "UTC"
+    SECRET_ARN        = module.vendor_secrets.secret_arn
   }
 }
 
@@ -131,6 +139,14 @@ output "lambda_function_url" {
 
 output "journal_bucket" {
   value = module.journal_bucket.bucket_name
+}
+
+output "vendor_secret_arn" {
+  value = module.vendor_secrets.secret_arn
+}
+
+output "vendor_secret_name" {
+  value = module.vendor_secrets.secret_name
 }
 
 output "schedule_names" {

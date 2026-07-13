@@ -46,6 +46,12 @@ class SwingMomentumSpec(BaseModel):
     ten_am_sniper_enabled: bool = True
     # 10AM: stock green while SPY/QQQ red
 
+    # Unusual Whales congress soft catalyst (never force ENTER)
+    congress_catalyst_enabled: bool = True
+    congress_lookback_days: int = 30
+    congress_soft_only: bool = True
+    congress_source: str = "unusual_whales"
+
     shared: SwingSharedExecution = Field(default_factory=lambda: SWING_SHARED)
 
     notes: list[str] = Field(
@@ -58,6 +64,8 @@ class SwingMomentumSpec(BaseModel):
             "10AM sniper: enter only if stock green while SPY/QQQ red.",
             "Hold: min 1 overnight; typical ~3 sessions; max 10 (see HoldPlan).",
             "Scan: flag RVOL>500% news breakouts / break-and-retest names.",
+            "Unusual Whales congress: soft only — buy raises priority; "
+            "sell can soft-skip ENTER→WATCH; never upgrades NO_TRADE→ENTER.",
             "Automation hooks (future): #MORNING_SCAN, #LOG_TRADE → sheet append.",
         ]
     )
