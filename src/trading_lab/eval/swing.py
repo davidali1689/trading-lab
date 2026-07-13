@@ -137,9 +137,7 @@ def evaluate_swing_momentum(
         trend_ok = spy_ok or qqq_ok
 
     rvol_min = (
-        spec.rvol_gate(ctx.market_cap_usd)
-        if ctx.market_cap_usd is not None
-        else spec.mid_rvol_min
+        spec.rvol_gate(ctx.market_cap_usd) if ctx.market_cap_usd is not None else spec.mid_rvol_min
     )
     rs_ok = True
     if tier == CapTier.MID and spec.mid_require_rs_vs_spy_qqq:
@@ -179,9 +177,7 @@ def evaluate_swing_momentum(
             soft_only=spec.congress_soft_only,
             meta=meta,
         )
-        catalyst = ";".join(
-            t for t in [";".join(missing), congress_note] if t
-        ) or "none"
+        catalyst = ";".join(t for t in [";".join(missing), congress_note] if t) or "none"
         return SwingDecision(
             agent_id=agent,
             symbol=symbol,

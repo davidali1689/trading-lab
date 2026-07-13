@@ -15,10 +15,12 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
 
+from typing import Literal
+
 from trading_lab.catalysts.types import CatalystKind, CatalystSignal
 
 
-def _parse_direction(txn_type: str | None) -> str | None:
+def _parse_direction(txn_type: str | None) -> Literal["buy", "sell"] | None:
     if not txn_type:
         return None
     t = txn_type.strip().lower()
@@ -80,7 +82,7 @@ class UnusualWhalesCongress:
             method="GET",
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:  # nosec B310
                 payload = json.loads(resp.read().decode("utf-8"))
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
             return []
@@ -108,7 +110,7 @@ class UnusualWhalesCongress:
                 CatalystSignal(
                     kind=CatalystKind.CONGRESS_TRADE,
                     symbol=ticker,
-                    direction=direction,  # type: ignore[arg-type]
+                    direction=direction,
                     disclosed_at=disclosed,
                     transaction_date=_parse_date(row.get("transaction_date")),
                     source="unusual_whales",

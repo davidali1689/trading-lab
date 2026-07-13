@@ -169,18 +169,14 @@ def run_phase(body: PhaseRequest) -> PhaseResult:
                     mode=RunMode.SIM if _mode() == RunMode.PAPER else _mode(),
                 )
                 summary["swing_power_hour"] = power
-                summary["swing_congress"] = evaluate_swing_with_congress(
-                    sym, use_mock=use_mock
-                )
+                summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=use_mock)
                 results.append(summary)
             else:
                 results.append(
                     {
                         "symbol": sym,
                         "swing_power_hour": power,
-                        "swing_congress": evaluate_swing_with_congress(
-                            sym, use_mock=False
-                        ),
+                        "swing_congress": evaluate_swing_with_congress(sym, use_mock=False),
                         "detail": "set USE_MOCK_BARS=false + Alpaca keys for paper ticks",
                     }
                 )
