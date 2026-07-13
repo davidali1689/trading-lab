@@ -39,6 +39,7 @@ from trading_lab.selection.watchlist import (
     build_daily_watchlist,
     get_watchlist,
     save_watchlist,
+    watchlist_to_csv,
 )
 
 logger = logging.getLogger("trading_lab.api")
@@ -141,6 +142,26 @@ def grafana_skips_csv(
         body, content_type = fetch_latest_csv("skips")
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return Response(content=body, media_type=content_type)
+
+
+@app.get("/grafana/watchlist.csv")
+def grafana_watchlist_csv(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> Response:
+    """Live candidates from S3 watchlist (Infinity datasource)."""
+    _require_grafana_token(x_grafana_token)
+    try:
+        body, content_type = fetch_latest_csv("watchlist")
+    except FileNotFoundError:
+        # Fallback: build CSV from JSON watchlist if grafana CSV not written yet
+        wl = get_watchlist()
+        return Response(
+            content=watchlist_to_csv(wl).encode("utf-8"),
+            media_type="text/csv; charset=utf-8",
+        )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return Response(content=body, media_type=content_type)

@@ -42,9 +42,10 @@ variable "enable" {
 }
 
 locals {
-  base       = trimsuffix(var.function_url, "/")
-  trades_uid = "${var.app_name}-trades"
-  skips_uid  = "${var.app_name}-skips"
+  base          = trimsuffix(var.function_url, "/")
+  trades_uid    = "${var.app_name}-trades"
+  skips_uid     = "${var.app_name}-skips"
+  watchlist_uid = "${var.app_name}-watchlist"
 }
 
 resource "grafana_data_source" "trades" {
@@ -83,6 +84,24 @@ resource "grafana_data_source" "skips" {
   })
 }
 
+resource "grafana_data_source" "watchlist" {
+  count = var.enable ? 1 : 0
+
+  type = "yesoreyeram-infinity-datasource"
+  name = "${var.app_name} watchlist CSV"
+  uid  = local.watchlist_uid
+  url  = "${local.base}/grafana/watchlist.csv"
+
+  json_data_encoded = jsonencode({
+    auth_method = "apiKey"
+    apiKeyKey   = "X-Grafana-Token"
+    apiKeyType  = "header"
+  })
+  secure_json_data_encoded = jsonencode({
+    apiKeyValue = var.grafana_feed_token
+  })
+}
+
 resource "grafana_dashboard" "agent_pnl" {
   count = var.enable ? 1 : 0
 
@@ -93,6 +112,7 @@ resource "grafana_dashboard" "agent_pnl" {
   depends_on = [
     grafana_data_source.trades,
     grafana_data_source.skips,
+    grafana_data_source.watchlist,
   ]
 }
 
@@ -102,6 +122,10 @@ output "trades_uid" {
 
 output "skips_uid" {
   value = try(grafana_data_source.skips[0].uid, local.skips_uid)
+}
+
+output "watchlist_uid" {
+  value = try(grafana_data_source.watchlist[0].uid, local.watchlist_uid)
 }
 
 output "dashboard_uid" {

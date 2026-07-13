@@ -115,6 +115,23 @@ def test_grafana_feed_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
         skips = client.get("/grafana/skips.csv", headers={"X-Grafana-Token": "tok"})
     assert skips.status_code == 200
 
+    from trading_lab.selection.watchlist import WatchlistCandidate, WatchlistDocument
+
+    doc = WatchlistDocument(
+        symbols=["ABCD"],
+        candidates=[WatchlistCandidate(symbol="ABCD", sources=["gainer"], price="10")],
+        source="fresh_scan",
+        built_at="2026-07-13T00:00:00+00:00",
+        size=1,
+        detail="test",
+    )
+    with patch("api.server.fetch_latest_csv", side_effect=FileNotFoundError("missing")):
+        with patch("api.server.get_watchlist", return_value=doc):
+            wl = client.get("/grafana/watchlist.csv", headers={"X-Grafana-Token": "tok"})
+    assert wl.status_code == 200
+    assert "ABCD" in wl.text
+    assert wl.text.startswith("symbol,")
+
 
 def test_events_route_accepts_scheduler_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET_ARN", "")

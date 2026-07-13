@@ -242,3 +242,7 @@ output "grafana_trades_uid" {
 output "grafana_skips_uid" {
   value = try(module.grafana_dashboard[0].skips_uid, null)
 }
+
+output "grafana_watchlist_uid" {
+  value = try(module.grafana_dashboard[0].watchlist_uid, null)
+}

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Literal
 
-TableName = Literal["trades", "skips"]
+TableName = Literal["trades", "skips", "watchlist"]
 
 LATEST_PREFIX = "grafana/latest"
 
@@ -26,7 +26,7 @@ def fetch_latest_csv(table: TableName, *, bucket: str | None = None) -> tuple[by
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
     if not bucket:
         raise FileNotFoundError("JOURNAL_S3_BUCKET unset")
-    if table not in {"trades", "skips"}:
+    if table not in {"trades", "skips", "watchlist"}:
         raise ValueError(f"unsupported table: {table}")
 
     try:

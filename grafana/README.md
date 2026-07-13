@@ -8,7 +8,7 @@ Agent Factory / Mission Control is unrelated.
 | Layer | Owner | Detail |
 |-------|--------|--------|
 | Cloud org, folder `Apps/trading-lab`, shared `cloudwatch` | aws-foundation | UID `apps-trading-lab` |
-| Infinity `trading-lab-trades` / `trading-lab-skips` + dashboard | this repo | `infra/modules/grafana-dashboard` |
+| Infinity `trading-lab-trades` / `trading-lab-skips` / `trading-lab-watchlist` + dashboard | this repo | `infra/modules/grafana-dashboard` |
 | CSV feed + EMF | Lambda | `/grafana/*.csv`, namespace `TradingLab` |
 
 ## One-time (platform)
@@ -27,14 +27,12 @@ Follow [`aws-foundation/modules/grafana-cloud/README.md`](../../aws-foundation/m
 "GRAFANA_FEED_TOKEN": "long-random-string"
 ```
 
-2. Deploy apply with Grafana enabled (local or CI secrets — do not commit):
+2. Deploy apply with Grafana enabled (defaults on; CI loads creds from Secrets Manager):
 
 ```hcl
-enable_grafana     = true
-grafana_feed_token = "..." # same as GRAFANA_FEED_TOKEN
+enable_grafana = true
 ```
 
-```powershell
 ## CI / Deploy
 
 GHA loads `GRAFANA_CLOUD_URL` + `GRAFANA_SERVICE_ACCOUNT_TOKEN` from Secrets Manager
@@ -47,9 +45,8 @@ Local override still works:
 $env:TF_VAR_grafana_url  = "https://YOURSTACK.grafana.net"
 $env:TF_VAR_grafana_auth = "glsa_..."
 ```
-```
 
-3. Open folder **Apps / trading-lab** → dashboard **Trading Lab — Agent P&L**.
+3. Open folder **Apps / trading-lab** → dashboard **Trading Lab — Agent P&L** (includes **Daily watchlist** panel).
 
 Function URL:
 
@@ -57,14 +54,25 @@ Function URL:
 https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws/
 ```
 
-Verify feed:
+Verify feeds:
 
 ```powershell
 $token = "..." # GRAFANA_FEED_TOKEN
-Invoke-WebRequest "https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
+$base = "https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws"
+Invoke-WebRequest "$base/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "$base/grafana/watchlist.csv" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
-404 until first EOD/postmarket persist (or `POST /run` `{"phase":"eod","force":true}`).
+Trades/skips 404 until first EOD/postmarket persist. Watchlist CSV is written on each premarket/postmarket scan (or falls back from `watchlists/latest.json`).
+
+## Mobile / desktop apps
+
+Grafana Labs does **not** ship a full dashboards mobile app. Use the browser:
+
+- Phone: open `https://goldcaiman1684.grafana.net` → add to home screen
+- Desktop: same URL in Chrome/Edge
+
+The App Store / Play Store **Grafana IRM** app is only for on-call alerts, not dashboards.
 
 ## Conventions (new apps)
 
