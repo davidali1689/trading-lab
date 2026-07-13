@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi import Body, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
@@ -153,6 +153,22 @@ def _emit_from_summary(summary: dict[str, Any]) -> None:
 
 @app.post("/run")
 def run_phase(body: PhaseRequest) -> PhaseResult:
+    return _run_phase(body)
+
+
+@app.post("/events")
+def events(body: dict[str, Any] = Body(default_factory=dict)) -> PhaseResult:
+    """EventBridge Scheduler → Lambda Web Adapter posts payload to /events."""
+    return _run_phase(
+        PhaseRequest(
+            phase=str(body.get("phase", "status")),
+            force=bool(body.get("force", False)),
+            symbol=body.get("symbol"),
+        )
+    )
+
+
+def _run_phase(body: PhaseRequest) -> PhaseResult:
     holiday = _holiday_noop(body.phase)
     if holiday is not None and not body.force:
         return holiday
@@ -307,5 +323,5 @@ def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
     else:
         payload = event if isinstance(event, dict) else {}
     phase = str(payload.get("phase", "status"))
-    result = run_phase(PhaseRequest(phase=phase, force=bool(payload.get("force", False))))
+    result = _run_phase(PhaseRequest(phase=phase, force=bool(payload.get("force", False))))
     return {"statusCode": 200, "body": result.model_dump_json()}

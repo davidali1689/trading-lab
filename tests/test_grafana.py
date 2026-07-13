@@ -114,3 +114,23 @@ def test_grafana_feed_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         skips = client.get("/grafana/skips.csv", headers={"X-Grafana-Token": "tok"})
     assert skips.status_code == 200
+
+
+def test_events_route_accepts_scheduler_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SECRET_ARN", "")
+    from api import server
+
+    client = TestClient(server.app)
+    with patch("api.server._run_phase") as mock_run:
+        mock_run.return_value = server.PhaseResult(
+            ok=True,
+            phase="tick",
+            clock_phase="closed",
+            detail="noop",
+            ts="2026-07-13T00:00:00+00:00",
+        )
+        resp = client.post("/events", json={"phase": "tick"})
+    assert resp.status_code == 200
+    mock_run.assert_called_once()
+    req = mock_run.call_args[0][0]
+    assert req.phase == "tick"
