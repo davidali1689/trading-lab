@@ -180,6 +180,47 @@ def grafana_watchlist_csv(
     )
 
 
+@app.get("/grafana/watchlist.json")
+def grafana_watchlist_json(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> dict[str, Any]:
+    """JSON array feed for Infinity (more reliable than CSV in table panels)."""
+    _require_grafana_token(x_grafana_token)
+    wl = get_watchlist()
+    rows: list[dict[str, Any]] = []
+    if wl.candidates:
+        for c in wl.candidates:
+            rows.append(
+                {
+                    "symbol": c.symbol,
+                    "status": c.status,
+                    "sources": "|".join(c.sources),
+                    "price": c.price or "",
+                    "volume": c.volume or "",
+                    "percent_change": c.percent_change or "",
+                    "reason": c.reason,
+                    "built_at": wl.built_at,
+                    "source": wl.source,
+                }
+            )
+    else:
+        for sym in wl.symbols:
+            rows.append(
+                {
+                    "symbol": sym,
+                    "status": "CANDIDATE",
+                    "sources": "",
+                    "price": "",
+                    "volume": "",
+                    "percent_change": "",
+                    "reason": "symbol_only",
+                    "built_at": wl.built_at,
+                    "source": wl.source,
+                }
+            )
+    return {"count": len(rows), "rows": rows, "detail": wl.detail}
+
+
 def _emit_from_summary(summary: dict[str, Any]) -> None:
     emit_tick_metric(
         symbol=str(summary.get("symbol", "")),

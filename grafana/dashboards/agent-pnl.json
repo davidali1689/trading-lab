@@ -46,22 +46,22 @@
       "targets": [
         {
           "refId": "A",
-          "type": "csv",
+          "type": "json",
           "source": "url",
           "url": "",
           "format": "table",
           "parser": "backend",
-          "root_selector": "",
+          "root_selector": "rows",
           "columns": [
             { "selector": "symbol", "text": "symbol", "type": "string" },
             { "selector": "status", "text": "status", "type": "string" },
             { "selector": "sources", "text": "sources", "type": "string" },
             { "selector": "price", "text": "price", "type": "string" },
             { "selector": "volume", "text": "volume", "type": "string" },
-            { "selector": "percent_change", "text": "percent_change", "type": "string" },
+            { "selector": "percent_change", "text": "% chg", "type": "string" },
             { "selector": "reason", "text": "reason", "type": "string" },
             { "selector": "built_at", "text": "built_at", "type": "string" },
-            { "selector": "watchlist_source", "text": "source", "type": "string" }
+            { "selector": "source", "text": "source", "type": "string" }
           ]
         }
       ]
@@ -87,7 +87,7 @@
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["count"], "fields": "/^symbol$/", "values": false },
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^count$/", "values": false },
         "colorMode": "value",
         "graphMode": "none",
         "textMode": "value_and_name"
@@ -95,13 +95,14 @@
       "targets": [
         {
           "refId": "A",
-          "type": "csv",
+          "type": "json",
           "source": "url",
           "url": "",
           "format": "table",
           "parser": "backend",
+          "root_selector": "",
           "columns": [
-            { "selector": "symbol", "text": "symbol", "type": "string" }
+            { "selector": "count", "text": "count", "type": "number" }
           ]
         }
       ]

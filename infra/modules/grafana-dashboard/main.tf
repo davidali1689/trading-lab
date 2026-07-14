@@ -101,9 +101,9 @@ resource "grafana_data_source" "watchlist" {
   count = var.enable ? 1 : 0
 
   type = "yesoreyeram-infinity-datasource"
-  name = "${var.app_name} watchlist CSV"
+  name = "${var.app_name} watchlist JSON"
   uid  = local.watchlist_uid
-  url  = "${local.base}/grafana/watchlist.csv"
+  url  = "${local.base}/grafana/watchlist.json"
 
   json_data_encoded = jsonencode(local.infinity_json)
   secure_json_data_encoded = jsonencode({

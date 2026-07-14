@@ -128,9 +128,13 @@ def test_grafana_feed_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
     with patch("api.server.fetch_latest_csv", side_effect=FileNotFoundError("missing")):
         with patch("api.server.get_watchlist", return_value=doc):
             wl = client.get("/grafana/watchlist.csv", headers={"X-Grafana-Token": "tok"})
+            js = client.get("/grafana/watchlist.json", headers={"X-Grafana-Token": "tok"})
     assert wl.status_code == 200
     assert "ABCD" in wl.text
     assert wl.text.startswith("symbol,")
+    assert js.status_code == 200
+    assert js.json()["count"] == 1
+    assert js.json()["rows"][0]["symbol"] == "ABCD"
 
 
 def test_events_route_accepts_scheduler_payload(monkeypatch: pytest.MonkeyPatch) -> None:
