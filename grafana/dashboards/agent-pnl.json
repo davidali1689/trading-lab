@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -22,103 +25,48 @@
       "title": "Setup",
       "type": "text",
       "id": 1,
-      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "options": {
         "mode": "markdown",
-        "content": "## Trading Lab — platform Grafana\n\nFolder **Apps/trading-lab**. Datasources: `trading-lab-trades`, `trading-lab-skips`, `trading-lab-watchlist`, shared `cloudwatch`. Feed header `X-Grafana-Token`. See `grafana/README.md`."
+        "content": "## Trading Lab\n**Today's watchlist** is written here by premarket/postmarket (see /status or /grafana/watchlist.json).\n\nAlpaca = fills/P&L \u00b7 Grafana = skips/ticks \u00b7 Sniper ~+3.5% target / ~-1.75% stop\n\n_Infinity watchlist table removed (No data bug). Setup text is the watchlist surface._"
       }
-    },
-    {
-      "title": "Daily watchlist",
-      "type": "table",
-      "id": 11,
-      "gridPos": { "h": 8, "w": 20, "x": 0, "y": 5 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-watchlist" },
-      "fieldConfig": {
-        "defaults": { "custom": { "align": "auto", "filterable": true } },
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true,
-        "footer": { "show": false },
-        "cellHeight": "sm"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "type": "json",
-          "source": "url",
-          "url": "",
-          "format": "table",
-          "parser": "backend",
-          "root_selector": "rows",
-          "columns": [
-            { "selector": "symbol", "text": "symbol", "type": "string" },
-            { "selector": "status", "text": "status", "type": "string" },
-            { "selector": "sources", "text": "sources", "type": "string" },
-            { "selector": "price", "text": "price", "type": "string" },
-            { "selector": "volume", "text": "volume", "type": "string" },
-            { "selector": "percent_change", "text": "% chg", "type": "string" },
-            { "selector": "reason", "text": "reason", "type": "string" },
-            { "selector": "built_at", "text": "built_at", "type": "string" },
-            { "selector": "source", "text": "source", "type": "string" }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "Watchlist size",
-      "type": "stat",
-      "id": 12,
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 5 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-watchlist" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^count$/", "values": false },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "type": "json",
-          "source": "url",
-          "url": "",
-          "format": "table",
-          "parser": "backend",
-          "root_selector": "",
-          "columns": [
-            { "selector": "count", "text": "count", "type": "number" }
-          ]
-        }
-      ]
     },
     {
       "title": "Trade count",
       "type": "stat",
       "id": 2,
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 13 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 7
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-trades"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "thresholds" } },
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          }
+        },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "value",
         "graphMode": "none",
         "textMode": "auto"
@@ -131,7 +79,12 @@
           "url": "",
           "url_options": {
             "method": "GET",
-            "headers": [{ "key": "X-Grafana-Token", "value": "${GRAFANA_FEED_TOKEN}" }]
+            "headers": [
+              {
+                "key": "X-Grafana-Token",
+                "value": "${GRAFANA_FEED_TOKEN}"
+              }
+            ]
           },
           "format": "table",
           "root_selector": "",
@@ -150,18 +103,34 @@
       "title": "Sum pnl_usd",
       "type": "stat",
       "id": 3,
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 13 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 7
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-trades"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
           "decimals": 2,
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["sum"], "fields": "/^pnl_usd$/", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "/^pnl_usd$/",
+          "values": false
+        },
         "colorMode": "value",
         "graphMode": "area",
         "textMode": "auto"
@@ -174,8 +143,16 @@
           "format": "table",
           "parser": "backend",
           "columns": [
-            { "selector": "pnl_usd", "text": "pnl_usd", "type": "number" },
-            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" }
+            {
+              "selector": "pnl_usd",
+              "text": "pnl_usd",
+              "type": "number"
+            },
+            {
+              "selector": "found_by_agent",
+              "text": "found_by_agent",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -184,14 +161,30 @@
       "title": "Skip count",
       "type": "stat",
       "id": 4,
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 13 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-skips" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 7
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-skips"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short" },
+        "defaults": {
+          "unit": "short"
+        },
         "overrides": []
       },
       "options": {
-        "reduceOptions": { "calcs": ["count"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "value",
         "graphMode": "none"
       },
@@ -208,22 +201,46 @@
       "title": "RTH TickCount (CloudWatch)",
       "type": "timeseries",
       "id": 5,
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 40 } },
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 40
+          }
+        },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
           "refId": "A",
           "namespace": "TradingLab",
           "metricName": "TickCount",
-          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "dimensions": {
+            "agent": "*",
+            "symbol": "*",
+            "status": "*"
+          },
           "statistic": "Sum",
           "period": "60",
           "region": "default",
@@ -237,22 +254,46 @@
       "title": "Orders vs Skips (CloudWatch)",
       "type": "timeseries",
       "id": 6,
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
           "refId": "A",
           "namespace": "TradingLab",
           "metricName": "Orders",
-          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "dimensions": {
+            "agent": "*",
+            "symbol": "*",
+            "status": "*"
+          },
           "statistic": "Sum",
           "period": "60",
           "region": "default",
@@ -265,7 +306,11 @@
           "refId": "B",
           "namespace": "TradingLab",
           "metricName": "Skips",
-          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "dimensions": {
+            "agent": "*",
+            "symbol": "*",
+            "status": "*"
+          },
           "statistic": "Sum",
           "period": "60",
           "region": "default",
@@ -280,20 +325,47 @@
       "title": "Trades",
       "type": "table",
       "id": 7,
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-trades" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-trades"
+      },
       "fieldConfig": {
-        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "pnl_usd" },
-            "properties": [{ "id": "unit", "value": "currencyUSD" }, { "id": "decimals", "value": 2 }]
+            "matcher": {
+              "id": "byName",
+              "options": "pnl_usd"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
           }
         ]
       },
       "options": {
         "showHeader": true,
-        "footer": { "show": false },
+        "footer": {
+          "show": false
+        },
         "cellHeight": "sm"
       },
       "targets": [
@@ -304,15 +376,51 @@
           "format": "table",
           "parser": "backend",
           "columns": [
-            { "selector": "entry_ts", "text": "entry_ts", "type": "timestamp" },
-            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" },
-            { "selector": "symbol", "text": "symbol", "type": "string" },
-            { "selector": "side", "text": "side", "type": "string" },
-            { "selector": "entry_px", "text": "entry_px", "type": "number" },
-            { "selector": "exit_px", "text": "exit_px", "type": "number" },
-            { "selector": "qty", "text": "qty", "type": "number" },
-            { "selector": "pnl_usd", "text": "pnl_usd", "type": "number" },
-            { "selector": "exit_reason", "text": "exit_reason", "type": "string" }
+            {
+              "selector": "entry_ts",
+              "text": "entry_ts",
+              "type": "timestamp"
+            },
+            {
+              "selector": "found_by_agent",
+              "text": "found_by_agent",
+              "type": "string"
+            },
+            {
+              "selector": "symbol",
+              "text": "symbol",
+              "type": "string"
+            },
+            {
+              "selector": "side",
+              "text": "side",
+              "type": "string"
+            },
+            {
+              "selector": "entry_px",
+              "text": "entry_px",
+              "type": "number"
+            },
+            {
+              "selector": "exit_px",
+              "text": "exit_px",
+              "type": "number"
+            },
+            {
+              "selector": "qty",
+              "text": "qty",
+              "type": "number"
+            },
+            {
+              "selector": "pnl_usd",
+              "text": "pnl_usd",
+              "type": "number"
+            },
+            {
+              "selector": "exit_reason",
+              "text": "exit_reason",
+              "type": "string"
+            }
           ]
         }
       ]
@@ -321,13 +429,29 @@
       "title": "Skips",
       "type": "table",
       "id": 8,
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 35 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "trading-lab-skips" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-skips"
+      },
       "fieldConfig": {
-        "defaults": { "custom": { "align": "auto", "filterable": true } },
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
         "overrides": []
       },
-      "options": { "showHeader": true, "cellHeight": "sm" },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
       "targets": [
         {
           "refId": "A",
@@ -336,35 +460,77 @@
           "format": "table",
           "parser": "backend",
           "columns": [
-            { "selector": "ts", "text": "ts", "type": "timestamp" },
-            { "selector": "found_by_agent", "text": "found_by_agent", "type": "string" },
-            { "selector": "symbol", "text": "symbol", "type": "string" },
-            { "selector": "skip_reason", "text": "skip_reason", "type": "string" },
-            { "selector": "detail", "text": "detail", "type": "string" }
+            {
+              "selector": "ts",
+              "text": "ts",
+              "type": "timestamp"
+            },
+            {
+              "selector": "found_by_agent",
+              "text": "found_by_agent",
+              "type": "string"
+            },
+            {
+              "selector": "symbol",
+              "text": "symbol",
+              "type": "string"
+            },
+            {
+              "selector": "skip_reason",
+              "text": "skip_reason",
+              "type": "string"
+            },
+            {
+              "selector": "detail",
+              "text": "detail",
+              "type": "string"
+            }
           ]
         }
       ]
     },
     {
-      "title": "Ops — Lambda Errors",
+      "title": "Ops \u2014 Lambda Errors",
       "type": "timeseries",
       "id": 9,
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 45 },
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 50 } },
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50
+          }
+        },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
       "targets": [
         {
           "refId": "A",
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
-          "dimensions": { "FunctionName": "trading-lab-worker" },
+          "dimensions": {
+            "FunctionName": "trading-lab-worker"
+          },
           "statistic": "Sum",
           "period": "60",
           "region": "default",
@@ -376,25 +542,47 @@
       ]
     },
     {
-      "title": "Ops — Premarket alarm (Errors)",
+      "title": "Ops \u2014 Premarket alarm (Errors)",
       "type": "timeseries",
       "id": 10,
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 45 },
-      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } },
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
       "targets": [
         {
           "refId": "A",
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
-          "dimensions": { "FunctionName": "trading-lab-worker" },
+          "dimensions": {
+            "FunctionName": "trading-lab-worker"
+          },
           "statistic": "Sum",
           "period": "300",
           "region": "default",
@@ -407,7 +595,11 @@
           "refId": "B",
           "namespace": "TradingLab",
           "metricName": "TickCount",
-          "dimensions": { "agent": "*", "symbol": "*", "status": "*" },
+          "dimensions": {
+            "agent": "*",
+            "symbol": "*",
+            "status": "*"
+          },
           "statistic": "Sum",
           "period": "300",
           "region": "default",
@@ -420,7 +612,13 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["trading-lab", "paper", "pnl", "ops", "watchlist"],
+  "tags": [
+    "trading-lab",
+    "paper",
+    "pnl",
+    "ops",
+    "watchlist"
+  ],
   "templating": {
     "list": [
       {
@@ -428,21 +626,44 @@
         "label": "Agent",
         "type": "custom",
         "query": "large_cap_sniper,speculative_sniper,swing_momentum,All",
-        "current": { "selected": true, "text": "large_cap_sniper", "value": "large_cap_sniper" },
+        "current": {
+          "selected": true,
+          "text": "large_cap_sniper",
+          "value": "large_cap_sniper"
+        },
         "options": [
-          { "selected": true, "text": "large_cap_sniper", "value": "large_cap_sniper" },
-          { "selected": false, "text": "speculative_sniper", "value": "speculative_sniper" },
-          { "selected": false, "text": "swing_momentum", "value": "swing_momentum" },
-          { "selected": false, "text": "All", "value": ".*" }
+          {
+            "selected": true,
+            "text": "large_cap_sniper",
+            "value": "large_cap_sniper"
+          },
+          {
+            "selected": false,
+            "text": "speculative_sniper",
+            "value": "speculative_sniper"
+          },
+          {
+            "selected": false,
+            "text": "swing_momentum",
+            "value": "swing_momentum"
+          },
+          {
+            "selected": false,
+            "text": "All",
+            "value": ".*"
+          }
         ],
         "includeAll": false,
         "multi": false
       }
     ]
   },
-  "time": { "from": "now-7d", "to": "now" },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "timezone": "America/New_York",
-  "title": "Trading Lab — Agent P&L",
+  "title": "Trading Lab \u2014 Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 4
+  "version": 5
 }
