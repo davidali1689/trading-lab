@@ -33,7 +33,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "## Trading Lab\n**Today's watchlist** is written here by premarket/postmarket (see /status or /grafana/watchlist.json).\n\nAlpaca = fills/P&L \u00b7 Grafana = skips/ticks \u00b7 Sniper ~+3.5% target / ~-1.75% stop\n\n_Infinity watchlist table removed (No data bug). Setup text is the watchlist surface._"
+        "content": "## Trading Lab\n**Today's watchlist** is written here by premarket/postmarket (see /status or /grafana/watchlist.json).\n\nAlpaca = fills/P&L | Grafana = skips/ticks | Sniper ~+3.5% target / ~-1.75% stop\n\n_Infinity watchlist table removed (No data bug). Setup text is the watchlist surface._"
       }
     },
     {
@@ -663,7 +663,7 @@
     "to": "now"
   },
   "timezone": "America/New_York",
-  "title": "Trading Lab \u2014 Agent P&L",
+  "title": "Trading Lab - Agent P&L",
   "uid": "trading-lab-agent-pnl",
   "version": 5
 }
