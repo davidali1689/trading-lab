@@ -490,7 +490,7 @@
       ]
     },
     {
-      "title": "Ops \u2014 Lambda Errors",
+      "title": "Ops - Lambda Errors",
       "type": "timeseries",
       "id": 9,
       "gridPos": {
@@ -542,7 +542,7 @@
       ]
     },
     {
-      "title": "Ops \u2014 Premarket alarm (Errors)",
+      "title": "Ops - Premarket alarm (Errors)",
       "type": "timeseries",
       "id": 10,
       "gridPos": {
