@@ -130,7 +130,11 @@ def grafana_trades_csv(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(content=body, media_type=content_type)
+    return Response(
+        content=body,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/grafana/skips.csv")
@@ -144,7 +148,11 @@ def grafana_skips_csv(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(content=body, media_type=content_type)
+    return Response(
+        content=body,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/grafana/watchlist.csv")
@@ -161,10 +169,15 @@ def grafana_watchlist_csv(
         return Response(
             content=watchlist_to_csv(wl).encode("utf-8"),
             media_type="text/csv; charset=utf-8",
+            headers={"Cache-Control": "no-store"},
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(content=body, media_type=content_type)
+    return Response(
+        content=body,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 def _emit_from_summary(summary: dict[str, Any]) -> None:

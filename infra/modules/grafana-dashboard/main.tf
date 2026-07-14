@@ -43,6 +43,7 @@ variable "enable" {
 
 locals {
   base          = trimsuffix(var.function_url, "/")
+  feed_host     = trimprefix(local.base, "https://")
   trades_uid    = "${var.app_name}-trades"
   skips_uid     = "${var.app_name}-skips"
   watchlist_uid = "${var.app_name}-watchlist"
@@ -57,9 +58,10 @@ resource "grafana_data_source" "trades" {
   url  = "${local.base}/grafana/trades.csv"
 
   json_data_encoded = jsonencode({
-    auth_method = "apiKey"
-    apiKeyKey   = "X-Grafana-Token"
-    apiKeyType  = "header"
+    auth_method  = "apiKey"
+    apiKeyKey    = "X-Grafana-Token"
+    apiKeyType   = "header"
+    allowedHosts = [local.feed_host]
   })
   secure_json_data_encoded = jsonencode({
     apiKeyValue = var.grafana_feed_token
@@ -75,9 +77,10 @@ resource "grafana_data_source" "skips" {
   url  = "${local.base}/grafana/skips.csv"
 
   json_data_encoded = jsonencode({
-    auth_method = "apiKey"
-    apiKeyKey   = "X-Grafana-Token"
-    apiKeyType  = "header"
+    auth_method  = "apiKey"
+    apiKeyKey    = "X-Grafana-Token"
+    apiKeyType   = "header"
+    allowedHosts = [local.feed_host]
   })
   secure_json_data_encoded = jsonencode({
     apiKeyValue = var.grafana_feed_token
@@ -93,9 +96,10 @@ resource "grafana_data_source" "watchlist" {
   url  = "${local.base}/grafana/watchlist.csv"
 
   json_data_encoded = jsonencode({
-    auth_method = "apiKey"
-    apiKeyKey   = "X-Grafana-Token"
-    apiKeyType  = "header"
+    auth_method  = "apiKey"
+    apiKeyKey    = "X-Grafana-Token"
+    apiKeyType   = "header"
+    allowedHosts = [local.feed_host]
   })
   secure_json_data_encoded = jsonencode({
     apiKeyValue = var.grafana_feed_token
