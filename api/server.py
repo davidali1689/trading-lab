@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
 from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
-from trading_lab.journal.persist import persist_journal_to_s3
+from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.paper_tick import run_paper_tick
 from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
@@ -317,6 +317,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                     results=[{"watchlist_source": wl.source, "detail": wl.detail}],
                     ts=datetime.now(timezone.utc).isoformat(),
                 )
+        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         power = swing_power_hour()
         for sym in symbols:
             use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() == "true"
@@ -346,11 +347,13 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                         ),
                     }
                 )
+        persist = persist_journal_to_s3(JOURNAL_PATH)
+        results.append({"hydrate": hydrate, "persist": persist})
         return PhaseResult(
             ok=True,
             phase=phase,
             clock_phase=clock.value,
-            detail=f"tick symbols={len(symbols)} power_hour={power}",
+            detail=f"tick symbols={len(symbols)} power_hour={power} persist={persist.get('ok')}",
             results=results,
             ts=datetime.now(timezone.utc).isoformat(),
         )
@@ -364,8 +367,9 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 detail="outside EOD window — no-op",
                 ts=datetime.now(timezone.utc).isoformat(),
             )
+        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
-        results.append(persist)
+        results.append({"hydrate": hydrate, "persist": persist})
         detail = f"eod flatten + persist: {persist}"
         logger.info(detail)
         return PhaseResult(
@@ -385,6 +389,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             else:
                 # Still run prep at scheduled 18:00
                 pass
+        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
@@ -394,6 +399,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             "watchlist_persist": persist_wl,
             "focus": "dynamic candidates for next session — sniper gates at RTH",
             "no_entries_after_hours": True,
+            "hydrate": hydrate,
             "persist": persist,
         }
         results.append(next_day_notes)

@@ -63,6 +63,19 @@ def run_paper_tick(
     )
     journal = SqliteJournal(journal_path)
     if len(bars) < 21:
+        skip = SkipEvent(
+            event_id=uuid4(),
+            run_id=run_id,
+            found_by_agent="large_cap_sniper",
+            symbol=symbol,
+            ts=end,
+            mode=RunMode.PAPER,
+            skip_reason=SkipReason.NO_LIQUIDITY,
+            detail=f"insufficient_bars={len(bars)}",
+            bar_ts=bars[-1].ts if bars else end,
+            meta={"bars": len(bars)},
+        )
+        journal.write_skip(skip)
         return {
             "symbol": symbol,
             "mode": "paper",
@@ -70,7 +83,7 @@ def run_paper_tick(
             "found_by_agent": "large_cap_sniper",
             "detail": f"insufficient_bars={len(bars)}",
             "orders": 0,
-            "skips": 0,
+            "skips": 1,
         }
 
     broker = AlpacaPaperBroker()

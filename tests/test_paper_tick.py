@@ -67,6 +67,23 @@ def test_broker_submit_bracket(monkeypatch):
     assert body["time_in_force"] == "day"
 
 
+def test_paper_tick_insufficient_bars_writes_skip(tmp_path, monkeypatch):
+    monkeypatch.setenv("USE_MOCK_BARS", "false")
+    md = MagicMock()
+    md.get_bars.return_value = []  # no bars → no broker call
+    with patch("trading_lab.pipeline.paper_tick.resolve_market_data", return_value=md):
+        out = run_paper_tick(symbol="THIN", journal_path=str(tmp_path / "j.sqlite"))
+    assert out["orders"] == 0
+    assert out["skips"] == 1
+    assert "insufficient_bars" in out["detail"]
+    from trading_lab.journal.sqlite import SqliteJournal
+
+    journal = SqliteJournal(tmp_path / "j.sqlite")
+    with journal._conn() as conn:
+        n = conn.execute("select count(*) from skips").fetchone()[0]
+    assert n == 1
+
+
 def test_paper_tick_no_enter_skips_broker(tmp_path, monkeypatch):
     monkeypatch.setenv("USE_MOCK_BARS", "false")
     monkeypatch.setenv("ALPACA_API_KEY", "PK")
