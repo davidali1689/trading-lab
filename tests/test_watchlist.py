@@ -152,10 +152,15 @@ def test_tick_hydrates_then_persists_journal(monkeypatch: pytest.MonkeyPatch) ->
         patch("api.server.sniper_ticks_allowed", return_value=True),
         patch("api.server.entries_enabled", return_value=True),
         patch("api.server._holiday_noop", return_value=None),
-        patch("api.server.run_vertical_slice", return_value={"symbol": "AAPL", "status": "NO_TRADE", "orders": 0, "skips": 1}),
+        patch(
+            "api.server.run_vertical_slice",
+            return_value={"symbol": "AAPL", "status": "NO_TRADE", "orders": 0, "skips": 1},
+        ),
         patch("api.server.evaluate_swing_with_congress", return_value={"status": "NO_TRADE"}),
         patch("api.server._emit_from_summary"),
-        patch("api.server.hydrate_journal_from_s3", return_value={"ok": True, "detail": "downloaded"}) as hydrate,
+        patch(
+            "api.server.hydrate_journal_from_s3", return_value={"ok": True, "detail": "downloaded"}
+        ) as hydrate,
         patch("api.server.persist_journal_to_s3", return_value={"ok": True}) as persist,
     ):
         resp = client.post("/events", json={"phase": "tick", "force": True})
