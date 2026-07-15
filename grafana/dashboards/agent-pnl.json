@@ -226,7 +226,6 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "noValue": "0",
           "color": {
             "mode": "thresholds"
           },
@@ -264,15 +263,21 @@
           "namespace": "AWS/Lambda",
           "metricName": "Invocations",
           "dimensions": {
-            "FunctionName": "trading-lab-worker"
+            "FunctionName": [
+              "trading-lab-worker"
+            ]
           },
           "statistic": "Sum",
           "period": "300",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "Invocations"
+          "label": "Invocations",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     },
@@ -316,16 +321,26 @@
           "namespace": "TradingLab",
           "metricName": "TickCount",
           "dimensions": {
-            "agent": "*",
-            "symbol": "*",
-            "status": "*"
+            "agent": [
+              "*"
+            ],
+            "symbol": [
+              "*"
+            ],
+            "status": [
+              "*"
+            ]
           },
           "statistic": "Sum",
           "period": "60",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
-          "metricEditorMode": 0
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     },
@@ -369,34 +384,54 @@
           "namespace": "TradingLab",
           "metricName": "Orders",
           "dimensions": {
-            "agent": "*",
-            "symbol": "*",
-            "status": "*"
+            "agent": [
+              "*"
+            ],
+            "symbol": [
+              "*"
+            ],
+            "status": [
+              "*"
+            ]
           },
           "statistic": "Sum",
           "period": "60",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "Orders"
+          "label": "Orders",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         },
         {
           "refId": "B",
           "namespace": "TradingLab",
           "metricName": "Skips",
           "dimensions": {
-            "agent": "*",
-            "symbol": "*",
-            "status": "*"
+            "agent": [
+              "*"
+            ],
+            "symbol": [
+              "*"
+            ],
+            "status": [
+              "*"
+            ]
           },
           "statistic": "Sum",
           "period": "60",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "Skips"
+          "label": "Skips",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     },
@@ -626,15 +661,21 @@
           "namespace": "AWS/Lambda",
           "metricName": "Invocations",
           "dimensions": {
-            "FunctionName": "trading-lab-worker"
+            "FunctionName": [
+              "trading-lab-worker"
+            ]
           },
           "statistic": "Sum",
           "period": "60",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "Invocations"
+          "label": "Invocations",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     },
@@ -678,15 +719,21 @@
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
           "dimensions": {
-            "FunctionName": "trading-lab-worker"
+            "FunctionName": [
+              "trading-lab-worker"
+            ]
           },
           "statistic": "Sum",
           "period": "60",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "Errors"
+          "label": "Errors",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     },
@@ -730,32 +777,48 @@
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
           "dimensions": {
-            "FunctionName": "trading-lab-worker"
+            "FunctionName": [
+              "trading-lab-worker"
+            ]
           },
           "statistic": "Sum",
           "period": "300",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "WorkerErrors"
+          "label": "WorkerErrors",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         },
         {
           "refId": "B",
           "namespace": "TradingLab",
           "metricName": "TickCount",
           "dimensions": {
-            "agent": "*",
-            "symbol": "*",
-            "status": "*"
+            "agent": [
+              "*"
+            ],
+            "symbol": [
+              "*"
+            ],
+            "status": [
+              "*"
+            ]
           },
           "statistic": "Sum",
           "period": "300",
-          "region": "default",
+          "region": "us-east-1",
           "queryMode": "Metrics",
-          "metricQueryType": "Search",
+          "metricQueryType": 0,
           "metricEditorMode": 0,
-          "label": "TickCount"
+          "label": "TickCount",
+          "statistics": [
+            "Sum"
+          ],
+          "matchExact": true
         }
       ]
     }
