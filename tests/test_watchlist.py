@@ -133,6 +133,40 @@ def test_save_and_load_watchlist_roundtrip(monkeypatch: pytest.MonkeyPatch) -> N
     assert loaded.source == "s3"
 
 
+def test_tick_hydrates_then_persists_journal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cold-start safe: tick must pull S3 journal before eval and push after."""
+    monkeypatch.setenv("SECRET_ARN", "")
+    monkeypatch.setenv("USE_MOCK_BARS", "true")
+    monkeypatch.setenv("TRADING_MODE", "sim")
+    from api import server
+
+    client = TestClient(server.app)
+    wl = MagicMock()
+    wl.symbols = ["AAPL"]
+    wl.source = "s3"
+    wl.detail = "candidates=1"
+    wl.to_dict.return_value = {"symbols": ["AAPL"]}
+
+    with (
+        patch("api.server.get_watchlist", return_value=wl),
+        patch("api.server.sniper_ticks_allowed", return_value=True),
+        patch("api.server.entries_enabled", return_value=True),
+        patch("api.server._holiday_noop", return_value=None),
+        patch("api.server.run_vertical_slice", return_value={"symbol": "AAPL", "status": "NO_TRADE", "orders": 0, "skips": 1}),
+        patch("api.server.evaluate_swing_with_congress", return_value={"status": "NO_TRADE"}),
+        patch("api.server._emit_from_summary"),
+        patch("api.server.hydrate_journal_from_s3", return_value={"ok": True, "detail": "downloaded"}) as hydrate,
+        patch("api.server.persist_journal_to_s3", return_value={"ok": True}) as persist,
+    ):
+        resp = client.post("/events", json={"phase": "tick", "force": True})
+
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    hydrate.assert_called_once()
+    persist.assert_called_once()
+    assert hydrate.call_args.args[0] == persist.call_args.args[0]
+
+
 def test_tick_empty_watchlist_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET_ARN", "")
     monkeypatch.setenv("KILL_SWITCH", "0")

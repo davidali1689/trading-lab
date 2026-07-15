@@ -56,7 +56,13 @@ def hydrate_journal_from_s3(
         return {"ok": False, "detail": f"hydrate failed: {exc}", "key": key}
 
     logger.info("hydrated journal from s3://%s/%s", bucket, key)
-    return {"ok": True, "detail": "downloaded", "bucket": bucket, "key": key, "path": str(local_path)}
+    return {
+        "ok": True,
+        "detail": "downloaded",
+        "bucket": bucket,
+        "key": key,
+        "path": str(local_path),
+    }
 
 
 def persist_journal_to_s3(

@@ -353,7 +353,10 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             ok=True,
             phase=phase,
             clock_phase=clock.value,
-            detail=f"tick symbols={len(symbols)} power_hour={power} persist={persist.get('ok')}",
+            detail=(
+                f"tick symbols={len(symbols)} power_hour={power} "
+                f"persist={persist.get('ok')}"
+            ),
             results=results,
             ts=datetime.now(timezone.utc).isoformat(),
         )
