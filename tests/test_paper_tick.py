@@ -80,8 +80,10 @@ def test_paper_tick_insufficient_bars_writes_skip(tmp_path, monkeypatch):
 
     journal = SqliteJournal(tmp_path / "j.sqlite")
     with journal._conn() as conn:
-        n = conn.execute("select count(*) from skips").fetchone()[0]
-    assert n == 1
+        row = conn.execute("select skip_reason, detail from skips").fetchone()
+    assert row is not None
+    assert row[0] == "insufficient_bars"
+    assert "insufficient_bars=" in (row[1] or "")
 
 
 def test_paper_tick_no_enter_skips_broker(tmp_path, monkeypatch):

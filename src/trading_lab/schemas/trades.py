@@ -42,6 +42,7 @@ class SkipReason(StrEnum):
     SETUP_MISSING = "setup_missing"
     RISK_BLOCKED = "risk_blocked"
     NO_LIQUIDITY = "no_liquidity"
+    INSUFFICIENT_BARS = "insufficient_bars"
     OUTSIDE_WINDOW = "outside_window"
     MAX_POSITIONS = "max_positions"
     DAILY_LOSS_HIT = "daily_loss_hit"

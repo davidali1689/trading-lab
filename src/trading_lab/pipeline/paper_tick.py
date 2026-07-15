@@ -70,7 +70,7 @@ def run_paper_tick(
             symbol=symbol,
             ts=end,
             mode=RunMode.PAPER,
-            skip_reason=SkipReason.NO_LIQUIDITY,
+            skip_reason=SkipReason.INSUFFICIENT_BARS,
             detail=f"insufficient_bars={len(bars)}",
             bar_ts=bars[-1].ts if bars else end,
             meta={"bars": len(bars)},
