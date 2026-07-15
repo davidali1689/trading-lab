@@ -55,7 +55,8 @@
           "unit": "short",
           "color": {
             "mode": "thresholds"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -122,7 +123,8 @@
           "decimals": 2,
           "color": {
             "mode": "thresholds"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -285,6 +287,14 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "us-east-1",
           "namespace": "AWS/Lambda",
           "metricName": "Invocations",
           "dimensions": {
@@ -293,16 +303,14 @@
             ]
           },
           "statistic": "Sum",
-          "period": "300",
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "label": "Invocations",
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "period": "300",
+          "matchExact": true,
+          "label": "Invocations",
+          "id": "",
+          "expression": ""
         }
       ]
     },
@@ -343,28 +351,25 @@
       "targets": [
         {
           "refId": "A",
-          "namespace": "TradingLab",
-          "metricName": "TickCount",
-          "dimensions": {
-            "agent": [
-              "*"
-            ],
-            "symbol": [
-              "*"
-            ],
-            "status": [
-              "*"
-            ]
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
           },
-          "statistic": "Sum",
-          "period": "60",
-          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
+          "region": "us-east-1",
+          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"TickCount\"', 'Sum', 60)",
+          "label": "TickCount",
+          "id": "",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "statistics": [
             "Sum"
           ],
+          "period": "60",
           "matchExact": false
         }
       ]
@@ -406,56 +411,48 @@
       "targets": [
         {
           "refId": "A",
-          "namespace": "TradingLab",
-          "metricName": "Orders",
-          "dimensions": {
-            "agent": [
-              "*"
-            ],
-            "symbol": [
-              "*"
-            ],
-            "status": [
-              "*"
-            ]
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
           },
-          "statistic": "Sum",
-          "period": "60",
-          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
+          "region": "us-east-1",
+          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"Orders\"', 'Sum', 60)",
           "label": "Orders",
+          "id": "",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "statistics": [
             "Sum"
           ],
+          "period": "60",
           "matchExact": false
         },
         {
           "refId": "B",
-          "namespace": "TradingLab",
-          "metricName": "Skips",
-          "dimensions": {
-            "agent": [
-              "*"
-            ],
-            "symbol": [
-              "*"
-            ],
-            "status": [
-              "*"
-            ]
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
           },
-          "statistic": "Sum",
-          "period": "60",
-          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
+          "region": "us-east-1",
+          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"Skips\"', 'Sum', 60)",
           "label": "Skips",
+          "id": "",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "statistics": [
             "Sum"
           ],
+          "period": "60",
           "matchExact": false
         }
       ]
@@ -683,6 +680,14 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "us-east-1",
           "namespace": "AWS/Lambda",
           "metricName": "Invocations",
           "dimensions": {
@@ -691,16 +696,14 @@
             ]
           },
           "statistic": "Sum",
-          "period": "60",
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "label": "Invocations",
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "period": "60",
+          "matchExact": true,
+          "label": "Invocations",
+          "id": "",
+          "expression": ""
         }
       ]
     },
@@ -741,6 +744,14 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "us-east-1",
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
           "dimensions": {
@@ -749,16 +760,14 @@
             ]
           },
           "statistic": "Sum",
-          "period": "60",
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "label": "Errors",
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "period": "60",
+          "matchExact": true,
+          "label": "Errors",
+          "id": "",
+          "expression": ""
         }
       ]
     },
@@ -799,6 +808,14 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "us-east-1",
           "namespace": "AWS/Lambda",
           "metricName": "Errors",
           "dimensions": {
@@ -807,42 +824,36 @@
             ]
           },
           "statistic": "Sum",
-          "period": "300",
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "label": "WorkerErrors",
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "period": "300",
+          "matchExact": true,
+          "label": "WorkerErrors",
+          "id": "",
+          "expression": ""
         },
         {
           "refId": "B",
-          "namespace": "TradingLab",
-          "metricName": "TickCount",
-          "dimensions": {
-            "agent": [
-              "*"
-            ],
-            "symbol": [
-              "*"
-            ],
-            "status": [
-              "*"
-            ]
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
           },
-          "statistic": "Sum",
-          "period": "300",
-          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
+          "region": "us-east-1",
+          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"TickCount\"', 'Sum', 300)",
           "label": "TickCount",
+          "id": "",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "statistics": [
             "Sum"
           ],
+          "period": "300",
           "matchExact": false
         }
       ]
