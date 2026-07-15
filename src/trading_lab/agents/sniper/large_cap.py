@@ -22,8 +22,11 @@ class LargeCapSniperSpec(BaseModel):
     default_stop_loss_pct: Decimal = Decimal("1.75")
     bar_timeframe: str = "1Min"
     min_rvol: Decimal = Decimal("1.5")
+    # Paper eval needs reachable setups; live keeps the strict floor.
+    min_rvol_paper: Decimal = Decimal("1.25")
     require_catalyst: bool = True
     require_catalyst_in_backtest: bool = False  # news sparse historically
+    require_catalyst_in_paper: bool = False  # evaluate strategy in action on paper
     require_price_above_vwap: bool = True
     require_aligned_with_spy_qqq: bool = True
     catalyst_types: list[str] = Field(
@@ -43,6 +46,8 @@ class LargeCapSniperSpec(BaseModel):
             "Uses sniper shared_execution (scale-out, 15m cool-off).",
             "HVN/LVN deferred — not a v0 gate.",
             "Backtest: catalyst relaxed (require_catalyst_in_backtest=False).",
+            "Paper: catalyst relaxed + min_rvol_paper so fills exist to evaluate.",
+            "Live: full gates (catalyst + min_rvol 1.5). ENTER always submits.",
             "Attribution key on every trade: found_by_agent=large_cap_sniper.",
         ]
     )

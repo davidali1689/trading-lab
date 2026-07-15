@@ -124,6 +124,8 @@ def run_paper_tick(
         }
 
     bar = bars[-1]
+    # Catalyst is relaxed in PAPER evaluate(); keep False until a real feed is wired.
+    # Spy/QQQ alignment defaults True when we do not fetch index bars each tick.
     ctx = SessionContext(
         symbol=symbol,
         bar=bar,
@@ -136,11 +138,8 @@ def run_paper_tick(
     decision = evaluate_large_cap_sniper(ctx, mode=RunMode.PAPER)
 
     if decision.status != SniperStatus.ENTER or decision.trade_map is None:
-        reason = (
-            SkipReason.SETUP_MISSING
-            if decision.status == SniperStatus.NO_TRADE
-            else SkipReason.OUTSIDE_WINDOW
-        )
+        # WATCH / NO_TRADE are both "no setup we like" — never map WATCH to outside_window.
+        reason = SkipReason.SETUP_MISSING
         skip = SkipEvent(
             event_id=uuid4(),
             run_id=run_id,
@@ -193,6 +192,13 @@ def run_paper_tick(
             "skips": 1,
         }
 
+    # Setup we like → must enter on paper (no silent drop after ENTER).
+    logger.info(
+        "ENTER %s qty=%s entry=%s — submitting Alpaca paper bracket",
+        symbol,
+        qty,
+        decision.trade_map.entry_trigger,
+    )
     order = broker.submit_bracket_order(intent)
     risk.on_open()
     # Provisional ledger row until bracket closes (exit=entry, open=true).
