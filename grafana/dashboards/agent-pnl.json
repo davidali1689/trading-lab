@@ -22,21 +22,6 @@
   "links": [],
   "panels": [
     {
-      "title": "Setup",
-      "type": "text",
-      "id": 1,
-      "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "options": {
-        "mode": "markdown",
-        "content": "## Trading Lab\n**Today's watchlist** is in the **Daily watchlist** panel below (premarket/postmarket scan). Also: `/status` or `/grafana/watchlist.json`.\n\nAlpaca = fills/P&L | Grafana journal = trades/skips snapshot | Sniper ~+3.5% target / ~-1.75% stop\n\n_Skip count rises ~1 row per symbol per minute by design. Trade/Skip stats are latest journal CSV (all agents), not time-range filtered._"
-      }
-    },
-    {
       "title": "Daily watchlist",
       "description": "Premarket/postmarket candidates from /grafana/watchlist.json (live).",
       "type": "table",
@@ -45,7 +30,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 0
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -142,7 +127,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 12
+        "y": 8
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -210,7 +195,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 12
+        "y": 8
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -278,7 +263,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 12
+        "y": 8
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -346,7 +331,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 12
+        "y": 8
       },
       "datasource": {
         "type": "cloudwatch",
@@ -424,7 +409,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 12
       },
       "datasource": {
         "type": "cloudwatch",
@@ -484,7 +469,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 12
       },
       "datasource": {
         "type": "cloudwatch",
@@ -567,7 +552,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 20
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -680,7 +665,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 30
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -753,7 +738,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 40
       },
       "datasource": {
         "type": "cloudwatch",
@@ -817,7 +802,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 40
       },
       "datasource": {
         "type": "cloudwatch",
@@ -881,7 +866,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 47
       },
       "datasource": {
         "type": "cloudwatch",
@@ -979,6 +964,6 @@
   "timezone": "America/New_York",
   "title": "Trading Lab - Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 6,
+  "version": 7,
   "refresh": "1m"
 }
