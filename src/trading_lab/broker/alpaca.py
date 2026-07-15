@@ -125,3 +125,13 @@ class AlpacaPaperBroker:
             qty=Decimal(str(row.get("qty") or intent.qty)),
             raw=row,
         )
+
+    def close_position(self, symbol: str) -> dict:
+        """Market-close an open paper position (EOD flatten)."""
+        row = self._request("DELETE", f"/v2/positions/{symbol.upper()}")
+        return row if isinstance(row, dict) else {"result": row}
+
+    def close_all_positions(self) -> list:
+        """Close all open paper positions."""
+        row = self._request("DELETE", "/v2/positions")
+        return row if isinstance(row, list) else [row]

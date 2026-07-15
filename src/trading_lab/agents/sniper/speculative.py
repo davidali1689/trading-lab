@@ -22,10 +22,13 @@ class SpeculativeSniperSpec(BaseModel):
     default_stop_loss_pct: Decimal = Decimal("4.0")
     bar_timeframe: str = "1Min"
     min_rvol: Decimal = Decimal("5.0")
+    # Paper: slightly softer RVOL so micro-cap screener names can ENTER for eval.
+    min_rvol_paper: Decimal = Decimal("4.0")
     max_float_shares: Decimal = Decimal("20000000")
     max_rsi: Decimal = Decimal("80")
     require_catalyst: bool = True
     require_catalyst_in_backtest: bool = False
+    require_catalyst_in_paper: bool = False
     catalyst_types: list[str] = Field(
         default_factory=lambda: [
             "fda_approval",
@@ -40,6 +43,7 @@ class SpeculativeSniperSpec(BaseModel):
             "Intraday speculative — market cap <$2B.",
             "RVOL >5 AND float <20M; RSI <80; clear catalyst.",
             "Target ≥8% (aim 12%); stop 3–5%. Hold: flat by EOD.",
+            "Paper: catalyst relaxed; float/RSI skipped when unknown; min_rvol_paper=4.",
             "Uses sniper shared_execution (scale-out, 15m cool-off, HVN→LVN).",
         ]
     )
