@@ -340,7 +340,7 @@
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "matchExact": false
         }
       ]
     },
@@ -404,7 +404,7 @@
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "matchExact": false
         },
         {
           "refId": "B",
@@ -431,7 +431,7 @@
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "matchExact": false
         }
       ]
     },
@@ -818,7 +818,7 @@
           "statistics": [
             "Sum"
           ],
-          "matchExact": true
+          "matchExact": false
         }
       ]
     }
