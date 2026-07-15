@@ -27,11 +27,13 @@ def hydrate_journal_from_s3(
     bucket: str | None = None,
     prefix: str = "journals",
 ) -> dict:
-    """Download journals/latest/*.sqlite into /tmp when local file is missing."""
+    """Download journals/latest/*.sqlite into /tmp (always refresh when remote exists).
+
+    Warm Lambda containers keep a stale /tmp sqlite; skipping download then
+    persist() stomps S3 and can wipe trades written by another process.
+    """
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
     local_path = Path(local_path)
-    if local_path.exists():
-        return {"ok": True, "detail": "local_exists", "path": str(local_path)}
     if not bucket:
         return {"ok": False, "detail": "JOURNAL_S3_BUCKET unset — skip hydrate"}
 

@@ -2,23 +2,33 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.schemas.trades import RunMode, SkipEvent, SkipReason
-from uuid import uuid4
-from datetime import UTC, datetime
 
 
-def test_hydrate_skips_when_local_exists(tmp_path, monkeypatch):
+def test_hydrate_refreshes_even_when_local_exists(tmp_path, monkeypatch):
+    """Warm Lambda /tmp must not block S3 refresh or persist stomps remote trades."""
     monkeypatch.setenv("JOURNAL_S3_BUCKET", "bucket")
     path = tmp_path / "trading-lab-journal.sqlite"
-    path.write_bytes(b"sqlite")
-    out = hydrate_journal_from_s3(path)
+    path.write_bytes(b"stale-local")
+    client = MagicMock()
+
+    def _download(_bucket, _key, dest):
+        Path(dest).write_bytes(b"remote-sqlite")
+
+    client.download_file.side_effect = _download
+    with patch("boto3.client", return_value=client):
+        out = hydrate_journal_from_s3(path)
     assert out["ok"] is True
-    assert out["detail"] == "local_exists"
+    assert out["detail"] == "downloaded"
+    assert path.read_bytes() == b"remote-sqlite"
+    client.download_file.assert_called_once()
 
 
 def test_hydrate_downloads_latest(tmp_path, monkeypatch):
