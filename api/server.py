@@ -16,6 +16,7 @@ from fastapi import Body, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
+from trading_lab.improvement.postmortem import run_and_persist_postmortem
 from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
@@ -369,8 +370,12 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             )
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
-        results.append({"hydrate": hydrate, "persist": persist})
-        detail = f"eod flatten + persist: {persist}"
+        coach = run_and_persist_postmortem(JOURNAL_PATH)
+        results.append({"hydrate": hydrate, "persist": persist, "postmortem": coach})
+        detail = (
+            f"eod flatten + persist + postmortem: persist={persist.get('ok')} "
+            f"coach={coach.get('ok')} mock={coach.get('mock')}"
+        )
         logger.info(detail)
         return PhaseResult(
             ok=True,

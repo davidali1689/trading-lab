@@ -98,6 +98,8 @@ module "lambda_worker" {
     JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
     KILL_SWITCH       = var.kill_switch
     TZ                = "UTC"
+    MOCK_BEDROCK      = "true"
+    BEDROCK_MODEL_ID  = "amazon.nova-lite-v1:0"
   }
 }
 

@@ -181,6 +181,8 @@ module "lambda_worker" {
     TZ                = "UTC"
     SECRET_ARN        = module.vendor_secrets.secret_arn
     ALPACA_PAPER      = "true"
+    MOCK_BEDROCK      = "true"
+    BEDROCK_MODEL_ID  = "amazon.nova-lite-v1:0"
   }
 }
 

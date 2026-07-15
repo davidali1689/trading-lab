@@ -102,6 +102,27 @@ resource "aws_iam_role_policy" "vendor_secrets" {
   })
 }
 
+# EOD post-mortem coach only (MOCK_BEDROCK=true until model access enabled).
+resource "aws_iam_role_policy" "bedrock_coach" {
+  name = "${local.lambda_name}-bedrock-coach"
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "bedrock:InvokeModel",
+        "bedrock:Converse",
+      ]
+      Resource = [
+        "arn:aws:bedrock:*::foundation-model/*",
+        "arn:aws:bedrock:*:*:inference-profile/*",
+      ]
+    }]
+  })
+}
+
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.lambda_name}"
   retention_in_days = 14

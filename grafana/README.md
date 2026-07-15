@@ -46,7 +46,10 @@ $env:TF_VAR_grafana_url  = "https://YOURSTACK.grafana.net"
 $env:TF_VAR_grafana_auth = "glsa_..."
 ```
 
-3. Open folder **Apps / trading-lab** → dashboard **Trading Lab — Agent P&L** (includes **Daily watchlist** panel).
+3. Open folder **Apps / trading-lab** → dashboard **Trading Lab - Agent P&L**.
+   - **Daily watchlist** panel uses Infinity JSON (`/grafana/watchlist.json`, `root_selector: rows`).
+   - Trade/Skip stats are **latest journal CSV snapshots** (all agents), not dashboard time-range filters.
+   - After Deploy apply, confirm Infinity datasources still have `X-Grafana-Token` = `GRAFANA_FEED_TOKEN`.
 
 Function URL:
 
@@ -60,10 +63,10 @@ Verify feeds:
 $token = "..." # GRAFANA_FEED_TOKEN
 $base = "https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws"
 Invoke-WebRequest "$base/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
-Invoke-WebRequest "$base/grafana/watchlist.csv" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "$base/grafana/watchlist.json" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
-Trades/skips 404 until first EOD/postmarket persist. Watchlist CSV is written on each premarket/postmarket scan (or falls back from `watchlists/latest.json`).
+Trades/skips 404 until first journal persist. Watchlist JSON is live from `get_watchlist()`; CSV is written on each premarket/postmarket scan.
 
 ## Mobile / desktop apps
 

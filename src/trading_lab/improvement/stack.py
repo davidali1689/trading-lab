@@ -22,7 +22,7 @@ class ImprovementStack(BaseModel):
     llm_coach_optional: list[str] = Field(
         default_factory=lambda: [
             "Langfuse: trace coach prompts, scores, latency (not entry decisions)",
-            "Bedrock post-mortem: summarize losing weeks from journal CSV",
+            "EOD Bedrock post-mortem: digest journal + narrative (MOCK_BEDROCK default)",
             "Never let Langfuse/LLM override risk gate or ENTER gates",
         ]
     )

@@ -26,25 +26,123 @@
       "type": "text",
       "id": 1,
       "gridPos": {
-        "h": 7,
+        "h": 4,
         "w": 24,
         "x": 0,
         "y": 0
       },
       "options": {
         "mode": "markdown",
-        "content": "## Trading Lab\n**Today's watchlist** is written here by premarket/postmarket (see /status or /grafana/watchlist.json).\n\nAlpaca = fills/P&L | Grafana = skips/ticks | Sniper ~+3.5% target / ~-1.75% stop\n\n_Infinity watchlist table removed (No data bug). Setup text is the watchlist surface._"
+        "content": "## Trading Lab\n**Today's watchlist** is in the **Daily watchlist** panel below (premarket/postmarket scan). Also: `/status` or `/grafana/watchlist.json`.\n\nAlpaca = fills/P&L | Grafana journal = trades/skips snapshot | Sniper ~+3.5% target / ~-1.75% stop\n\n_Skip count rises ~1 row per symbol per minute by design. Trade/Skip stats are latest journal CSV (all agents), not time-range filtered._"
       }
     },
     {
-      "title": "Trade count",
+      "title": "Daily watchlist",
+      "description": "Premarket/postmarket candidates from /grafana/watchlist.json (live).",
+      "type": "table",
+      "id": 13,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-watchlist"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-watchlist"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
+          "format": "table",
+          "parser": "backend",
+          "root_selector": "rows",
+          "columns": [
+            {
+              "selector": "symbol",
+              "text": "symbol",
+              "type": "string"
+            },
+            {
+              "selector": "status",
+              "text": "status",
+              "type": "string"
+            },
+            {
+              "selector": "sources",
+              "text": "sources",
+              "type": "string"
+            },
+            {
+              "selector": "price",
+              "text": "price",
+              "type": "string"
+            },
+            {
+              "selector": "volume",
+              "text": "volume",
+              "type": "string"
+            },
+            {
+              "selector": "percent_change",
+              "text": "percent_change",
+              "type": "string"
+            },
+            {
+              "selector": "reason",
+              "text": "reason",
+              "type": "string"
+            },
+            {
+              "selector": "built_at",
+              "text": "built_at",
+              "type": "string"
+            },
+            {
+              "selector": "source",
+              "text": "source",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Trade count (journal)",
       "type": "stat",
       "id": 2,
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -101,17 +199,18 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Rows in latest trades.csv (all agents). Not filtered by dashboard time range."
     },
     {
-      "title": "Sum pnl_usd",
+      "title": "Sum pnl_usd (journal)",
       "type": "stat",
       "id": 3,
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -168,17 +267,18 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Sum of pnl_usd in latest trades.csv (all agents)."
     },
     {
-      "title": "Skip count",
+      "title": "Skip count (journal)",
       "type": "stat",
       "id": 4,
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -186,7 +286,8 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -234,7 +335,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Rows in latest skips.csv (~1 skip/symbol/tick). Latest snapshot, all agents."
     },
     {
       "title": "Lambda Invocations",
@@ -244,7 +346,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "cloudwatch",
@@ -322,7 +424,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 16
       },
       "datasource": {
         "type": "cloudwatch",
@@ -359,7 +461,7 @@
           "metricQueryType": 0,
           "metricEditorMode": 1,
           "region": "us-east-1",
-          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"TickCount\"', 'Sum', 60)",
+          "expression": "SEARCH('{TradingLab,symbol,agent,status} MetricName=\"TickCount\"', 'Sum', 60)",
           "label": "TickCount",
           "id": "",
           "namespace": "",
@@ -382,7 +484,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 11
+        "y": 16
       },
       "datasource": {
         "type": "cloudwatch",
@@ -419,7 +521,7 @@
           "metricQueryType": 0,
           "metricEditorMode": 1,
           "region": "us-east-1",
-          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"Orders\"', 'Sum', 60)",
+          "expression": "SEARCH('{TradingLab,symbol,agent,status} MetricName=\"Orders\"', 'Sum', 60)",
           "label": "Orders",
           "id": "",
           "namespace": "",
@@ -442,7 +544,7 @@
           "metricQueryType": 0,
           "metricEditorMode": 1,
           "region": "us-east-1",
-          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"Skips\"', 'Sum', 60)",
+          "expression": "SEARCH('{TradingLab,symbol,agent,status} MetricName=\"Skips\"', 'Sum', 60)",
           "label": "Skips",
           "id": "",
           "namespace": "",
@@ -465,7 +567,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 24
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -578,7 +680,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 34
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -651,7 +753,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 44
       },
       "datasource": {
         "type": "cloudwatch",
@@ -715,7 +817,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 44
       },
       "datasource": {
         "type": "cloudwatch",
@@ -772,14 +874,14 @@
       ]
     },
     {
-      "title": "Ops - Premarket alarm (Errors)",
+      "title": "Ops - Errors vs TickCount",
       "type": "timeseries",
       "id": 10,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 51
       },
       "datasource": {
         "type": "cloudwatch",
@@ -843,7 +945,7 @@
           "metricQueryType": 0,
           "metricEditorMode": 1,
           "region": "us-east-1",
-          "expression": "SEARCH('{TradingLab,agent,status,symbol} MetricName=\"TickCount\"', 'Sum', 300)",
+          "expression": "SEARCH('{TradingLab,symbol,agent,status} MetricName=\"TickCount\"', 'Sum', 300)",
           "label": "TickCount",
           "id": "",
           "namespace": "",
@@ -868,43 +970,7 @@
     "watchlist"
   ],
   "templating": {
-    "list": [
-      {
-        "name": "agent",
-        "label": "Agent",
-        "type": "custom",
-        "query": "large_cap_sniper,speculative_sniper,swing_momentum,All",
-        "current": {
-          "selected": true,
-          "text": "large_cap_sniper",
-          "value": "large_cap_sniper"
-        },
-        "options": [
-          {
-            "selected": true,
-            "text": "large_cap_sniper",
-            "value": "large_cap_sniper"
-          },
-          {
-            "selected": false,
-            "text": "speculative_sniper",
-            "value": "speculative_sniper"
-          },
-          {
-            "selected": false,
-            "text": "swing_momentum",
-            "value": "swing_momentum"
-          },
-          {
-            "selected": false,
-            "text": "All",
-            "value": ".*"
-          }
-        ],
-        "includeAll": false,
-        "multi": false
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-7d",
@@ -913,6 +979,6 @@
   "timezone": "America/New_York",
   "title": "Trading Lab - Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 5,
+  "version": 6,
   "refresh": "1m"
 }
