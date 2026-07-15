@@ -55,7 +55,8 @@
           "unit": "short",
           "color": {
             "mode": "thresholds"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -74,28 +75,20 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-trades"
+          },
           "type": "csv",
           "source": "url",
           "url": "",
           "url_options": {
-            "method": "GET",
-            "headers": [
-              {
-                "key": "X-Grafana-Token",
-                "value": "${GRAFANA_FEED_TOKEN}"
-              }
-            ]
+            "method": "GET"
           },
           "format": "table",
+          "parser": "backend",
           "root_selector": "",
-          "columns": [],
-          "filters": [
-            {
-              "field": "found_by_agent",
-              "operator": "=",
-              "value": "${agent}"
-            }
-          ]
+          "columns": []
         }
       ]
     },
@@ -119,7 +112,8 @@
           "decimals": 2,
           "color": {
             "mode": "thresholds"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -138,8 +132,16 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-trades"
+          },
           "type": "csv",
           "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
           "format": "table",
           "parser": "backend",
           "columns": [
@@ -173,7 +175,8 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -191,9 +194,85 @@
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-skips"
+          },
           "type": "csv",
           "source": "url",
-          "format": "table"
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
+          "format": "table",
+          "parser": "backend"
+        }
+      ]
+    },
+    {
+      "title": "Lambda Invocations",
+      "type": "stat",
+      "id": 11,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 7
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "trading-lab-worker"
+          },
+          "statistic": "Sum",
+          "period": "300",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "Invocations"
         }
       ]
     },
@@ -340,7 +419,8 @@
           "custom": {
             "align": "auto",
             "filterable": true
-          }
+          },
+          "noValue": "0"
         },
         "overrides": [
           {
@@ -421,7 +501,15 @@
               "text": "exit_reason",
               "type": "string"
             }
-          ]
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-trades"
+          },
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          }
         }
       ]
     },
@@ -444,7 +532,8 @@
           "custom": {
             "align": "auto",
             "filterable": true
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -485,7 +574,67 @@
               "text": "detail",
               "type": "string"
             }
-          ]
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-skips"
+          },
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Ops - Lambda Invocations",
+      "type": "timeseries",
+      "id": 12,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 40
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "trading-lab-worker"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "region": "default",
+          "queryMode": "Metrics",
+          "metricQueryType": "Search",
+          "metricEditorMode": 0,
+          "label": "Invocations"
         }
       ]
     },
@@ -496,7 +645,7 @@
       "gridPos": {
         "h": 7,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 39
       },
       "datasource": {
@@ -547,9 +696,9 @@
       "id": 10,
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 39
+        "w": 24,
+        "x": 0,
+        "y": 46
       },
       "datasource": {
         "type": "cloudwatch",
@@ -665,5 +814,6 @@
   "timezone": "America/New_York",
   "title": "Trading Lab - Agent P&L",
   "uid": "trading-lab-agent-pnl",
-  "version": 5
+  "version": 5,
+  "refresh": "1m"
 }

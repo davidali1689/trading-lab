@@ -51,6 +51,7 @@ locals {
     auth_method  = "apiKey"
     apiKeyKey    = "X-Grafana-Token"
     apiKeyType   = "header"
+    httpMethod   = "GET"
     allowedHosts = [local.feed_host, "https://${local.feed_host}"]
   }
 }
