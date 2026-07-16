@@ -50,7 +50,10 @@ def test_notes_cover_families():
     notes = all_agent_notes()
     assert "sniper_shared_execution" in notes
     assert "swing_shared_execution" in notes
-    assert any("PDT" in n for n in notes["swing_shared_execution"])
+    swing = notes["swing_shared_execution"]
+    assert any("intraday margin" in n for n in swing)
+    assert any("$2k" in n or "2000" in n for n in swing)
+    assert not any("PDT" in n for n in swing)
 
 
 def test_trade_pnl_and_hold():

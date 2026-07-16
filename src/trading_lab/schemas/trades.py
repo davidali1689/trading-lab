@@ -35,7 +35,7 @@ class ExitReason(StrEnum):
     EMA_BREAK = "ema_break"
     MANUAL = "manual"
     RISK_KILL = "risk_kill"
-    PDT_EMERGENCY = "pdt_emergency"
+    SAME_DAY_EXIT = "same_day_exit"
 
 
 class SkipReason(StrEnum):
@@ -46,7 +46,7 @@ class SkipReason(StrEnum):
     OUTSIDE_WINDOW = "outside_window"
     MAX_POSITIONS = "max_positions"
     DAILY_LOSS_HIT = "daily_loss_hit"
-    PDT_RESERVE = "pdt_reserve"
+    MARGIN_HEADROOM = "margin_headroom"
     UNSETTLED_FUNDS = "unsettled_funds"
     MARKET_GUARDRAIL = "market_guardrail"
     COOLING_OFF = "cooling_off"

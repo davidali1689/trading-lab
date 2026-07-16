@@ -17,7 +17,7 @@ class CommonExecutionRules(BaseModel):
             "NO_TRADE / skip is a successful outcome when setup is missing.",
             "Every ENTER must include HoldPlan (min / typical / max + summary).",
             "Sim fills use the same P&L ledger as paper/live.",
-            "Strategy-family rules (sniper cooling-off, swing PDT) are NOT here.",
+            "Strategy-family rules (sniper cooling-off, swing multi-session hold) are NOT here.",
         ]
     )
 

@@ -1,6 +1,7 @@
 """#FULL_SPECTRUM swing momentum — multi-cap filters + entry timing.
 
-Source: user's swing strategy (PDT-aware, 8-EMA, RVOL tiers, Power Hour / 10AM sniper).
+Source: user's swing strategy (multi-session hold, 8-EMA, RVOL tiers,
+Power Hour / 10AM sniper).
 """
 
 from decimal import Decimal
@@ -86,7 +87,7 @@ class SwingMomentumSpec(BaseModel):
                     "typical_hold_sessions": 2,
                     "max_hold_sessions": 7,
                     "summary": (
-                        "Swing micro/penny: min 1 overnight (PDT). "
+                        "Swing micro/penny: prefer ≥1 overnight (multi-session). "
                         "Typical 2–4 sessions; time-stop by session 7. "
                         "Ladder +12% final / 5% stop; exit if close < 8-EMA."
                     ),
@@ -97,7 +98,7 @@ class SwingMomentumSpec(BaseModel):
                 update={
                     "typical_hold_sessions": 4,
                     "summary": (
-                        "Swing mid-cap: min 1 overnight (PDT). "
+                        "Swing mid-cap: prefer ≥1 overnight (multi-session). "
                         "Typical 3–5 sessions; time-stop by session 10. "
                         "Ladder +8% final / 3% stop; exit if close < 8-EMA."
                     ),
