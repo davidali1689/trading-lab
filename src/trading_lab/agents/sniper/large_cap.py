@@ -40,15 +40,13 @@ class LargeCapSniperSpec(BaseModel):
     shared: SniperSharedExecution = Field(default_factory=lambda: SNIPER_SHARED)
     notes: list[str] = Field(
         default_factory=lambda: [
-            "Intraday large-cap only — market leaders >$10B.",
-            "RVOL >1.5; catalyst; above VWAP; SPY/QQQ aligned.",
-            "Target 3–4%; stop 1.5–2%. Hold: flat by EOD (no overnight).",
-            "Uses sniper shared_execution (scale-out, 15m cool-off).",
-            "HVN/LVN deferred — not a v0 gate.",
-            "Backtest: catalyst relaxed (require_catalyst_in_backtest=False).",
-            "Paper: catalyst relaxed + min_rvol_paper so fills exist to evaluate.",
-            "Live: full gates (catalyst + min_rvol 1.5). ENTER always submits.",
-            "Attribution key on every trade: found_by_agent=large_cap_sniper.",
+            "Intraday large-cap leaders ≥$10B — trade with the tape (Livermore / Murphy).",
+            "Gates: RVOL>1.5; above VWAP; SPY/QQQ aligned; catalyst (relaxed paper/backtest).",
+            "Target 3–4%; stop 1.5–2%. Flat by EOD.",
+            "Never force a trade — missing gates → SKIP (Douglas).",
+            "Budget: sizes to 1/5 equity; book max 3 positions.",
+            "Define risk before entry; 15m cool-off after stop (Elder / Tharp).",
+            "Attribution: found_by_agent=large_cap_sniper.",
         ]
     )
 

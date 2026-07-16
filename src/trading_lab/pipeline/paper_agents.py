@@ -20,7 +20,6 @@ from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
 from trading_lab.market_data.types import BarRequest, SessionContext
 from trading_lab.pipeline.paper_submit import (
-    DEFAULT_NOTIONAL_USD,
     make_risk_gate,
     qty_for_price,
     submit_paper_intent,
@@ -81,7 +80,7 @@ def run_sniper_paper_tick(
     agent_id: str,
     market_cap_usd: Decimal | None,
     broker: AlpacaPaperBroker | None = None,
-    notional_usd: Decimal = DEFAULT_NOTIONAL_USD,
+    notional_usd: Decimal | None = None,
 ) -> dict:
     """1Min bars → routed sniper eval → paper bracket on ENTER."""
     run_id = uuid4()
@@ -120,7 +119,7 @@ def run_sniper_paper_tick(
         }
 
     broker = broker or AlpacaPaperBroker()
-    risk, equity = make_risk_gate(broker, notional_usd=notional_usd)
+    risk, equity, use_notional = make_risk_gate(broker, notional_usd=notional_usd)
 
     if broker.has_open_position(symbol):
         write_skip(
@@ -183,7 +182,7 @@ def run_sniper_paper_tick(
             "skips": 1,
         }
 
-    qty = qty_for_price(decision.trade_map.entry_trigger, notional_usd)
+    qty = qty_for_price(decision.trade_map.entry_trigger, use_notional)
     intent = decision.to_trade_intent(qty)
     assert intent is not None
     return submit_paper_intent(
@@ -194,7 +193,7 @@ def run_sniper_paper_tick(
         run_id=run_id,
         bar_ts=bar.ts,
         equity=equity,
-        notional_usd=notional_usd,
+        notional_usd=use_notional,
     )
 
 
@@ -203,7 +202,7 @@ def run_symbol_paper_tick(
     symbol: str,
     journal_path: str,
     market_cap_usd: Decimal | None = None,
-    notional_usd: Decimal = DEFAULT_NOTIONAL_USD,
+    notional_usd: Decimal | None = None,
 ) -> dict:
     """Route sniper by cap + evaluate swing (orders only in power hour)."""
     cap = resolve_market_cap(symbol, market_cap_usd)

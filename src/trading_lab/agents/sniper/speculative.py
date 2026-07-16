@@ -40,11 +40,13 @@ class SpeculativeSniperSpec(BaseModel):
     shared: SniperSharedExecution = Field(default_factory=lambda: SNIPER_SHARED)
     notes: list[str] = Field(
         default_factory=lambda: [
-            "Intraday speculative — market cap <$2B.",
-            "RVOL >5 AND float <20M; RSI <80; clear catalyst.",
-            "Target ≥8% (aim 12%); stop 3–5%. Hold: flat by EOD.",
-            "Paper: catalyst relaxed; float/RSI skipped when unknown; min_rvol_paper=4.",
-            "Uses sniper shared_execution (scale-out, 15m cool-off, HVN→LVN).",
+            "Intraday speculative <$2B — only with clear catalyst + volume expansion.",
+            "Gates: RVOL>5; float<20M; RSI<80; catalyst (relaxed paper when unknown).",
+            "Target ≥8% (aim 12%); stop 3–5%. Flat by EOD.",
+            "Never force a trade — no catalyst/volume → SKIP (selectivity).",
+            "Budget: sizes to 1/5 equity; book max 3 positions — small-account risk.",
+            "Uses sniper shared_execution (scale-out, 15m cool-off).",
+            "Attribution: found_by_agent=speculative_sniper.",
         ]
     )
 

@@ -25,6 +25,7 @@ def walk_forward_bakeoff(
     symbol: str = "AAPL",
     months: int = 2,
     journal_path: str = "data/walkforward.sqlite",
+    equity: Decimal | None = None,
 ) -> BacktestReport:
     """Run monthly slices; currently executes large_cap_sniper fully.
 
@@ -46,6 +47,7 @@ def walk_forward_bakeoff(
         symbol=symbol,
         journal_path=journal_path,
         mode=RunMode.BACKTEST,
+        equity=equity,
     )
 
     agents: list[AgentAccuracyReport] = []

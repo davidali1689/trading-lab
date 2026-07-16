@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER
 from trading_lab.pipeline.paper_agents import run_sniper_paper_tick
-from trading_lab.pipeline.paper_submit import DEFAULT_NOTIONAL_USD, qty_for_price
+from trading_lab.pipeline.paper_submit import qty_for_price
 
 # Re-export for existing tests
 _qty_for_price = qty_for_price
@@ -20,7 +20,7 @@ def run_paper_tick(
     symbol: str,
     journal_path: str,
     market_cap_usd: Decimal = Decimal("3000000000000"),
-    notional_usd: Decimal = DEFAULT_NOTIONAL_USD,
+    notional_usd: Decimal | None = None,
 ) -> dict:
     """Evaluate large_cap_sniper on latest bars and submit paper bracket if ENTER."""
     return run_sniper_paper_tick(

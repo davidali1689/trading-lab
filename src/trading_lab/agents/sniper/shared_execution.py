@@ -27,7 +27,8 @@ class SniperStatus(StrEnum):
 class SniperSharedExecution(BaseModel):
     philosophy: str = (
         "High-conviction, low-frequency intraday. Prefer NO_TRADE in chop. "
-        "Cooling-off after stop-outs is mandatory."
+        "Never force a trade. Cooling-off after stop-outs is mandatory. "
+        "Size = one budget slice (equity/5)."
     )
     scale_out_fraction_of_target: Decimal = Decimal("0.5")
     scale_out_position_fraction: Decimal = Decimal("0.5")
@@ -50,8 +51,10 @@ class SniperSharedExecution(BaseModel):
     notes: list[str] = Field(
         default_factory=lambda: [
             "Applies to large_cap_sniper + mid_cap_sniper + speculative_sniper only.",
-            "At 50% of target: sell 50%, stop → breakeven on remainder.",
-            "After stop-loss: block new ENTERs for 15 minutes.",
+            "Never force a trade — chop → NO_TRADE (Douglas / Livermore).",
+            "Budget: one slice = equity/5; book max 3 open positions.",
+            "At 50% of target: sell 50%, stop → breakeven on remainder (Elder money mgmt).",
+            "After stop-loss: block new ENTERs for 15 minutes (anti-revenge).",
             "HVN→LVN deferred (require_hvn_break_into_lvn=False in v0).",
             "Hold: always intraday / flat by EOD (max_hold_sessions=0).",
         ]

@@ -14,9 +14,11 @@ class CommonExecutionRules(BaseModel):
     log_skips: bool = True
     notes: list[str] = Field(
         default_factory=lambda: [
-            "NO_TRADE / skip is a successful outcome when setup is missing.",
+            "Never force a trade — NO_TRADE / SKIP is a successful outcome (Douglas).",
             "Every ENTER must include HoldPlan (min / typical / max + summary).",
-            "Sim fills use the same P&L ledger as paper/live.",
+            "Budget: current platform equity ÷ 5 (dynamic); 1 slice/agent; ≤3 open.",
+            "Unused slices stay cash — selectivity over activity (Minervini / Livermore).",
+            "Sim fills use the same P&L ledger as paper/live (Elder journal discipline).",
             "Strategy-family rules (sniper cooling-off, swing multi-session hold) are NOT here.",
         ]
     )

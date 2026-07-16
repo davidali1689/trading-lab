@@ -1,4 +1,8 @@
-"""Vertical slice: mock/Alpaca bars → large_cap_sniper → risk → fill → journal."""
+"""Vertical slice: mock bars → large_cap_sniper → budget risk → fill → journal.
+
+Budget always comes from platform equity (or an explicit equity= for offline
+tests). Never a hardcoded dollar budget.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +11,15 @@ from decimal import Decimal
 from uuid import uuid4
 
 from trading_lab.agents.sniper.shared_execution import SniperStatus
+from trading_lab.config.secrets import has_alpaca_keys
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
+from trading_lab.execution.budget import risk_config_from_equity, slice_notional
 from trading_lab.execution.fill_model import DEFAULT_FILL_MODEL, FillModel
 from trading_lab.execution.risk_gate import RiskGate
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.mock import MockMarketData
 from trading_lab.market_data.types import BarRequest, SessionContext
+from trading_lab.pipeline.paper_submit import qty_for_price
 from trading_lab.schemas.hold import HoldPlan
 from trading_lab.schemas.trades import (
     ExitReason,
@@ -24,16 +31,31 @@ from trading_lab.schemas.trades import (
 )
 
 
+def _platform_equity() -> Decimal:
+    """Current Alpaca account equity — required for budget slices."""
+    from trading_lab.broker.alpaca import AlpacaPaperBroker
+
+    acct = AlpacaPaperBroker().get_account()
+    if acct.equity is None or acct.equity <= 0:
+        raise RuntimeError("platform equity unavailable or non-positive")
+    return acct.equity
+
+
 def run_vertical_slice(
     *,
     symbol: str = "AAPL",
     journal_path: str = "data/journal.sqlite",
-    qty: Decimal = Decimal("10"),
+    qty: Decimal | None = None,
+    equity: Decimal | None = None,
     market_cap_usd: Decimal = Decimal("3000000000000"),
     mode: RunMode = RunMode.BACKTEST,
     fill_model: FillModel = DEFAULT_FILL_MODEL,
 ) -> dict:
-    """End-to-end local run with honest next-bar fills. Returns summary counts."""
+    """End-to-end local run with honest next-bar fills. Returns summary counts.
+
+    Position size = one budget slice of current equity (equity/5). Max 3 opens.
+    Pass equity= only for offline tests; otherwise read Alpaca.
+    """
     run_id = uuid4()
     end = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     start = end - timedelta(hours=6)
@@ -42,7 +64,16 @@ def run_vertical_slice(
         BarRequest(symbol=symbol, timeframe="1Min", start=start, end=end, feed="iex")
     )
     journal = SqliteJournal(journal_path)
-    risk = RiskGate()
+    if equity is not None:
+        book_equity = equity
+    elif has_alpaca_keys():
+        book_equity = _platform_equity()
+    else:
+        raise RuntimeError(
+            "budget needs platform equity — configure Alpaca keys or pass equity= for tests"
+        )
+    notional = slice_notional(book_equity)
+    risk = RiskGate(config=risk_config_from_equity(book_equity))
     trades: list[TradeRecord] = []
     skips: list[SkipEvent] = []
 
@@ -85,7 +116,10 @@ def run_vertical_slice(
             i += 1
             continue
 
-        intent = decision.to_trade_intent(qty)
+        trade_qty = (
+            qty if qty is not None else qty_for_price(decision.trade_map.entry_trigger, notional)
+        )
+        intent = decision.to_trade_intent(trade_qty)
         assert intent is not None
         gate = risk.check(intent, bar.ts)
         if not gate.allowed:
@@ -109,7 +143,6 @@ def run_vertical_slice(
         entry_px = fill_model.fill_price(bar, next_bar, Side.LONG)
         risk.on_open()
 
-        # Manage until stop/target/EOD-ish (max 60 bars)
         exit_px = entry_px
         exit_reason = ExitReason.TIME
         exit_ts = next_bar.ts
@@ -118,7 +151,6 @@ def run_vertical_slice(
         j = i + 2
         while j < len(bars) and bars_held < 60:
             b = bars[j]
-            # Intrabar stop/target check vs prior signal levels
             if decision.trade_map.stop_loss is not None and b.low <= decision.trade_map.stop_loss:
                 exit_px = fill_model.exit_fill(b, Side.LONG, is_stop=True)
                 exit_reason = ExitReason.STOP
@@ -149,7 +181,7 @@ def run_vertical_slice(
             setup_tags=intent.setup_tags,
             entry_ts=next_bar.ts,
             entry_px=entry_px,
-            qty=qty,
+            qty=trade_qty,
             stop_px=decision.trade_map.stop_loss,
             target_px=decision.trade_map.final_take_profit,
             hold_plan=hold,
@@ -159,7 +191,12 @@ def run_vertical_slice(
             bars_held=bars_held,
             fill_model=fill_model.style.value,
             slippage_bps=fill_model.slippage_bps,
-            meta={"found_by_agent": agent},
+            meta={
+                "found_by_agent": agent,
+                "equity": str(book_equity),
+                "notional_usd": str(notional),
+                "budget_slice": "1/5",
+            },
         )
         risk.on_close(trade.pnl_usd, stop_hit=stop_hit, now=exit_ts)
         trades.append(trade)
@@ -171,5 +208,7 @@ def run_vertical_slice(
         "trades": len(trades),
         "skips": len(skips),
         "journal_path": journal_path,
+        "equity": str(book_equity),
+        "slice_notional": str(notional),
         "found_by_agents": sorted({t.found_by_agent for t in trades}),
     }

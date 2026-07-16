@@ -21,7 +21,6 @@ from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
 from trading_lab.market_data.types import Bar, BarRequest, SessionContext
 from trading_lab.pipeline.paper_submit import (
-    DEFAULT_NOTIONAL_USD,
     make_risk_gate,
     qty_for_price,
     submit_paper_intent,
@@ -71,7 +70,7 @@ def run_swing_paper_tick(
     journal_path: str,
     market_cap_usd: Decimal | None = None,
     broker: AlpacaPaperBroker | None = None,
-    notional_usd: Decimal = DEFAULT_NOTIONAL_USD,
+    notional_usd: Decimal | None = None,
     submit: bool | None = None,
     use_mock_bars: bool = False,
     score_only: bool = False,
@@ -210,8 +209,8 @@ def run_swing_paper_tick(
         base["skips"] = 1
         return base
 
-    risk, equity = make_risk_gate(broker, notional_usd=notional_usd)
-    qty = qty_for_price(decision.trade_map.entry_trigger, notional_usd)
+    risk, equity, use_notional = make_risk_gate(broker, notional_usd=notional_usd)
+    qty = qty_for_price(decision.trade_map.entry_trigger, use_notional)
     intent = decision.to_trade_intent(qty)
     assert intent is not None
     submitted = submit_paper_intent(
@@ -222,6 +221,6 @@ def run_swing_paper_tick(
         run_id=run_id,
         bar_ts=bars[-1].ts,
         equity=equity,
-        notional_usd=notional_usd,
+        notional_usd=use_notional,
     )
     return {**base, **submitted}

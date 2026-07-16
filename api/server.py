@@ -323,7 +323,16 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         power = swing_power_hour()
         for sym in symbols:
             use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() == "true"
-            if use_mock or _mode() in {RunMode.BACKTEST, RunMode.SIM}:
+            # Paper mode + Alpaca keys → real paper broker path (equity/5 sizing).
+            # Mock/sim only when not paper or keys missing.
+            if _mode() == RunMode.PAPER and has_alpaca_keys():
+                summary = run_symbol_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
+                summary["swing_power_hour"] = power
+                summary["budget"] = "platform equity/5, max 3 open (dynamic)"
+                _emit_from_summary(summary)
+                results.append(summary)
+            elif use_mock or _mode() in {RunMode.BACKTEST, RunMode.SIM}:
+                # Mock bars still size from live Alpaca equity when keys exist.
                 summary = run_vertical_slice(
                     symbol=sym,
                     journal_path=JOURNAL_PATH,
@@ -331,11 +340,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 )
                 summary["swing_power_hour"] = power
                 summary["swing_congress"] = evaluate_swing_with_congress(sym, use_mock=use_mock)
-                _emit_from_summary(summary)
-                results.append(summary)
-            elif _mode() == RunMode.PAPER and has_alpaca_keys():
-                summary = run_symbol_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
-                summary["swing_power_hour"] = power
+                summary["budget"] = "platform equity/5, max 3 open (dynamic)"
                 _emit_from_summary(summary)
                 results.append(summary)
             else:
@@ -343,9 +348,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                     {
                         "symbol": sym,
                         "swing_power_hour": power,
-                        "detail": (
-                            "paper path needs USE_MOCK_BARS=false + Alpaca keys in Secrets Manager"
-                        ),
+                        "detail": ("need Alpaca keys — budget is always current platform equity/5"),
                     }
                 )
         persist = persist_journal_to_s3(JOURNAL_PATH)

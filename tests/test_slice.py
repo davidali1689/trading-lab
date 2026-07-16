@@ -66,9 +66,10 @@ def test_risk_gate_blocks_max_positions():
 def test_vertical_slice_and_grafana_export(tmp_path: Path):
     db = tmp_path / "journal.sqlite"
     out = tmp_path / "grafana"
-    summary = run_vertical_slice(journal_path=str(db))
+    summary = run_vertical_slice(journal_path=str(db), equity=Decimal("100000"))
     assert summary["trades"] + summary["skips"] > 0
     assert "large_cap_sniper" in summary["found_by_agents"] or summary["trades"] == 0
+    assert summary["slice_notional"] == "20000.00"
     journal = SqliteJournal(db)
     assert journal.count_trades() == summary["trades"]
     paths = export_journal_csv(db, out)
@@ -77,7 +78,10 @@ def test_vertical_slice_and_grafana_export(tmp_path: Path):
 
 
 def test_walk_forward_lists_all_agents(tmp_path: Path):
-    report = walk_forward_bakeoff(journal_path=str(tmp_path / "wf.sqlite"))
+    report = walk_forward_bakeoff(
+        journal_path=str(tmp_path / "wf.sqlite"),
+        equity=Decimal("100000"),
+    )
     ids = {a.agent_id for a in report.agents}
     assert ids == {
         "large_cap_sniper",

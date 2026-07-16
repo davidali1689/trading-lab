@@ -57,18 +57,17 @@ class SwingMomentumSpec(BaseModel):
 
     notes: list[str] = Field(
         default_factory=lambda: [
-            "New swing longs only if SPY or QQQ > 20-day MA.",
-            "Entry valid only if ticker > 8-day EMA.",
-            "RVOL: large ≥125%, mid ≥150%+RS vs SPY/QQQ, micro ≥200%.",
-            "Sector sympathy: if 2+ peers hit volume, scan laggards.",
+            "Swing longs only if SPY or QQQ > 20-day MA (market direction filter — O'Neil).",
+            "Entry valid only if ticker > 8-day EMA (trend confirmation — Murphy).",
+            "RVOL: large ≥125%, mid ≥150%+RS vs SPY/QQQ, micro ≥200% (relative strength).",
+            "Never force a trade — congress/catalyst never upgrades NO_TRADE→ENTER.",
+            "Budget: sizes to 1/5 equity; book max 3 positions.",
+            "Multi-day rallies: final target ~12% (20% micro) — >8% OK; scale at +4%.",
             "Prefer Power Hour (15:30 ET) for strong daily close confirmation.",
             "10AM sniper: enter only if stock green while SPY/QQQ red.",
             "Hold: min 1 overnight; typical ~3 sessions; max 10 (see HoldPlan).",
-            "Scan: flag RVOL>500% news breakouts / break-and-retest names.",
-            "Unusual Whales congress: DISABLED by default (needs API sub). "
-            "When enabled: buy raises priority; sell soft-skips ENTER→WATCH; "
-            "never upgrades NO_TRADE→ENTER.",
-            "Automation hooks (future): #MORNING_SCAN, #LOG_TRADE → sheet append.",
+            "Sector sympathy: if 2+ peers hit volume, scan laggards.",
+            "Unusual Whales congress: DISABLED by default (needs API sub).",
         ]
     )
 
@@ -89,7 +88,7 @@ class SwingMomentumSpec(BaseModel):
                     "summary": (
                         "Swing micro/penny: prefer ≥1 overnight (multi-session). "
                         "Typical 2–4 sessions; time-stop by session 7. "
-                        "Ladder +12% final / 5% stop; exit if close < 8-EMA."
+                        "Ladder +20% final / 5% stop; exit if close < 8-EMA."
                     ),
                 }
             )
@@ -100,7 +99,7 @@ class SwingMomentumSpec(BaseModel):
                     "summary": (
                         "Swing mid-cap: prefer ≥1 overnight (multi-session). "
                         "Typical 3–5 sessions; time-stop by session 10. "
-                        "Ladder +8% final / 3% stop; exit if close < 8-EMA."
+                        "Ladder +12% final / 3% stop (>8% OK on multi-day); exit if close < 8-EMA."
                     ),
                 }
             )

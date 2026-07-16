@@ -41,11 +41,13 @@ class MidCapSniperSpec(BaseModel):
     shared: SniperSharedExecution = Field(default_factory=lambda: SNIPER_SHARED)
     notes: list[str] = Field(
         default_factory=lambda: [
-            "Intraday mid-cap — market cap $2B–<$10B.",
-            "RVOL ≥2 (≥1.5 paper); price > VWAP; SPY/QQQ aligned.",
+            "Intraday mid-cap $2B–<$10B — strength + volume (O'Neil / Minervini DNA).",
+            "Gates: RVOL≥2 (≥1.5 paper); above VWAP; SPY/QQQ aligned.",
             "Target 8% (6–8% band); stop 2.5–3.5% (default 3%). Flat by EOD.",
+            "Never force a trade — missing gates → SKIP.",
+            "Budget: sizes to 1/5 equity; book max 3 positions.",
             "Paper/backtest: catalyst relaxed. Uses sniper shared_execution.",
-            "Attribution key: found_by_agent=mid_cap_sniper.",
+            "Attribution: found_by_agent=mid_cap_sniper.",
         ]
     )
 
