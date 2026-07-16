@@ -20,6 +20,7 @@ from trading_lab.improvement.postmortem import run_and_persist_postmortem
 from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
+from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
 from trading_lab.pipeline.paper_agents import run_symbol_paper_tick
 from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
@@ -232,46 +233,6 @@ def _emit_from_summary(summary: dict[str, Any]) -> None:
     )
 
 
-def _flatten_sniper_paper(journal_path: str) -> list[dict[str, Any]]:
-    """Close Alpaca paper positions from intraday snipers (swing may overnight)."""
-    if not has_alpaca_keys():
-        return [{"ok": False, "detail": "no_alpaca_keys"}]
-    import json
-    import sqlite3
-
-    from trading_lab.broker.alpaca import AlpacaPaperBroker
-
-    snipers = {"large_cap_sniper", "speculative_sniper"}
-    symbols: set[str] = set()
-    path = Path(journal_path)
-    if path.exists():
-        with sqlite3.connect(path) as conn:
-            for row in conn.execute("SELECT symbol, found_by_agent, payload FROM trades"):
-                symbol, agent, payload_raw = row
-                if agent not in snipers:
-                    continue
-                try:
-                    payload = json.loads(payload_raw or "{}")
-                except json.JSONDecodeError:
-                    continue
-                meta = payload.get("meta") or {}
-                if meta.get("open") is True:
-                    symbols.add(str(symbol).upper())
-    if not symbols:
-        return [{"ok": True, "detail": "no_open_sniper_positions"}]
-    broker = AlpacaPaperBroker()
-    out: list[dict[str, Any]] = []
-    for sym in sorted(symbols):
-        try:
-            broker.close_position(sym)
-            out.append({"symbol": sym, "ok": True})
-            logger.info("EOD flattened sniper position %s", sym)
-        except Exception as exc:  # noqa: BLE001
-            out.append({"symbol": sym, "ok": False, "detail": str(exc)})
-            logger.exception("EOD flatten failed for %s", sym)
-    return out
-
-
 @app.post("/run")
 def run_phase(body: PhaseRequest) -> PhaseResult:
     return _run_phase(body)
@@ -408,7 +369,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 ts=datetime.now(timezone.utc).isoformat(),
             )
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
-        flatten = _flatten_sniper_paper(JOURNAL_PATH)
+        flatten = flatten_sniper_paper(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
         coach = run_and_persist_postmortem(JOURNAL_PATH)
         results.append(
