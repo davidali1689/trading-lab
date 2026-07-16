@@ -12,10 +12,7 @@ from trading_lab.agents.sniper import (
 from trading_lab.agents.swing import SWING_MOMENTUM, SWING_SHARED
 
 AgentSpec = (
-    type(LARGE_CAP_SNIPER)
-    | type(MID_CAP_SNIPER)
-    | type(SPECULATIVE_SNIPER)
-    | type(SWING_MOMENTUM)
+    type(LARGE_CAP_SNIPER) | type(MID_CAP_SNIPER) | type(SPECULATIVE_SNIPER) | type(SWING_MOMENTUM)
 )
 
 AGENTS: dict[str, Any] = {
