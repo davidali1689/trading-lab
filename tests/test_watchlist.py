@@ -138,6 +138,8 @@ def test_tick_hydrates_then_persists_journal(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("SECRET_ARN", "")
     monkeypatch.setenv("USE_MOCK_BARS", "true")
     monkeypatch.setenv("TRADING_MODE", "sim")
+    monkeypatch.delenv("ALPACA_API_KEY", raising=False)
+    monkeypatch.delenv("ALPACA_API_SECRET", raising=False)
     from api import server
 
     client = TestClient(server.app)
@@ -152,9 +154,17 @@ def test_tick_hydrates_then_persists_journal(monkeypatch: pytest.MonkeyPatch) ->
         patch("api.server.sniper_ticks_allowed", return_value=True),
         patch("api.server.entries_enabled", return_value=True),
         patch("api.server._holiday_noop", return_value=None),
+        patch("api.server.has_alpaca_keys", return_value=False),
         patch(
             "api.server.run_vertical_slice",
-            return_value={"symbol": "AAPL", "status": "NO_TRADE", "orders": 0, "skips": 1},
+            return_value={
+                "symbol": "AAPL",
+                "status": "NO_TRADE",
+                "orders": 0,
+                "skips": 1,
+                "equity": "100000",
+                "slice_notional": "20000.00",
+            },
         ),
         patch("api.server.evaluate_swing_with_congress", return_value={"status": "NO_TRADE"}),
         patch("api.server._emit_from_summary"),

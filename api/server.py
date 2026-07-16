@@ -53,7 +53,6 @@ load_secrets(hydrate=True)
 app = FastAPI(title="trading-lab", version="0.2.0")
 
 JOURNAL_PATH = os.environ.get("JOURNAL_PATH", "/tmp/trading-lab-journal.sqlite")  # nosec B108
-TRADING_MODE = os.environ.get("TRADING_MODE", "paper")
 
 
 class PhaseRequest(BaseModel):
@@ -75,8 +74,10 @@ class PhaseResult(BaseModel):
 
 
 def _mode() -> RunMode:
+    """Read TRADING_MODE from env each call (tests / Lambda env updates)."""
+    raw = os.environ.get("TRADING_MODE", "paper")
     try:
-        return RunMode(TRADING_MODE)
+        return RunMode(raw)
     except ValueError:
         return RunMode.PAPER
 
@@ -108,7 +109,7 @@ def status() -> dict[str, Any]:
         "swing_power_hour": swing_power_hour(),
         "entries_enabled": entries_enabled(),
         "process_window": process_window_label(),
-        "trading_mode": TRADING_MODE,
+        "trading_mode": _mode().value,
         "watchlist": wl.symbols,
         "watchlist_source": wl.source,
         "watchlist_detail": wl.detail,
@@ -322,17 +323,21 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         power = swing_power_hour()
         for sym in symbols:
-            use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() == "true"
-            # Paper mode + Alpaca keys → real paper broker path (equity/5 sizing).
-            # Mock/sim only when not paper or keys missing.
-            if _mode() == RunMode.PAPER and has_alpaca_keys():
+            use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+            # Real paper path: paper mode + keys + live bars (not mock).
+            # Budget = current Alpaca equity/5 every tick.
+            if _mode() == RunMode.PAPER and has_alpaca_keys() and not use_mock:
                 summary = run_symbol_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
                 summary["swing_power_hour"] = power
                 summary["budget"] = "platform equity/5, max 3 open (dynamic)"
                 _emit_from_summary(summary)
                 results.append(summary)
             elif use_mock or _mode() in {RunMode.BACKTEST, RunMode.SIM}:
-                # Mock bars still size from live Alpaca equity when keys exist.
+                # Offline/mock: size from platform equity when keys work; else tests pass equity=.
                 summary = run_vertical_slice(
                     symbol=sym,
                     journal_path=JOURNAL_PATH,
@@ -348,7 +353,10 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                     {
                         "symbol": sym,
                         "swing_power_hour": power,
-                        "detail": ("need Alpaca keys — budget is always current platform equity/5"),
+                        "detail": (
+                            "need Alpaca keys + USE_MOCK_BARS=false — "
+                            "budget is always current platform equity/5"
+                        ),
                     }
                 )
         persist = persist_journal_to_s3(JOURNAL_PATH)
