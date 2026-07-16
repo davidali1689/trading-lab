@@ -49,7 +49,7 @@ class SniperSharedExecution(BaseModel):
     )
     notes: list[str] = Field(
         default_factory=lambda: [
-            "Applies to large_cap_sniper + speculative_sniper only.",
+            "Applies to large_cap_sniper + mid_cap_sniper + speculative_sniper only.",
             "At 50% of target: sell 50%, stop → breakeven on remainder.",
             "After stop-loss: block new ENTERs for 15 minutes.",
             "HVN→LVN deferred (require_hvn_break_into_lvn=False in v0).",

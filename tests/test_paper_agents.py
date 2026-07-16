@@ -24,8 +24,15 @@ def test_resolve_sniper_spy_is_large():
     assert resolve_sniper_agent(None, "SPY") == "large_cap_sniper"
 
 
-def test_resolve_sniper_mid_cap_none():
-    assert resolve_sniper_agent(Decimal("5000000000"), "XYZ") is None
+def test_resolve_sniper_mid_cap():
+    assert resolve_sniper_agent(Decimal("5000000000"), "XYZ") == "mid_cap_sniper"
+
+
+def test_resolve_sniper_mid_cap_band_edges():
+    assert resolve_sniper_agent(Decimal("2000000000"), "MID") == "mid_cap_sniper"
+    assert resolve_sniper_agent(Decimal("9999999999"), "MID") == "mid_cap_sniper"
+    assert resolve_sniper_agent(Decimal("10000000000"), "BIG") == "large_cap_sniper"
+    assert resolve_sniper_agent(Decimal("1999999999"), "MIC") == "speculative_sniper"
 
 
 def test_run_symbol_routes_speculative_and_defers_swing(tmp_path, monkeypatch):
@@ -120,4 +127,91 @@ def test_run_symbol_routes_speculative_and_defers_swing(tmp_path, monkeypatch):
         or out["swing"].get("detail") == "enter_deferred_until_power_hour"
     )
     # Only sniper submitted (swing deferred)
+    assert broker.submit_bracket_order.call_count == 1
+
+
+def test_run_symbol_routes_mid_cap_and_submits(tmp_path, monkeypatch):
+    monkeypatch.setenv("USE_MOCK_BARS", "false")
+    monkeypatch.setenv("ALPACA_API_KEY", "PK")
+    monkeypatch.setenv("ALPACA_API_SECRET", "SK")
+
+    bars = [
+        Bar(
+            symbol="XYZ",
+            ts=datetime(2026, 7, 15, 14, i, tzinfo=UTC),
+            open=Decimal("40"),
+            high=Decimal("40.5"),
+            low=Decimal("39.8"),
+            close=Decimal("40"),
+            volume=Decimal("10000"),
+            timeframe="1Min",
+        )
+        for i in range(25)
+    ]
+    md = MagicMock()
+    md.get_bars.return_value = bars
+    broker = MagicMock()
+    broker.get_account.return_value = BrokerAccount(
+        equity=Decimal("100000"),
+        cash=Decimal("100000"),
+        buying_power=Decimal("200000"),
+        paper=True,
+    )
+    broker.get_open_positions.return_value = []
+    broker.has_open_position.return_value = False
+    broker.submit_bracket_order.return_value = BrokerOrderResult(
+        order_id="ord-mid",
+        symbol="XYZ",
+        status="accepted",
+        qty=Decimal("25"),
+    )
+
+    sniper_decision = SniperDecision(
+        agent_id="mid_cap_sniper",
+        symbol="XYZ",
+        status=SniperStatus.ENTER,
+        trade_map=TradeMap(
+            entry_trigger=Decimal("40"),
+            scale_out_point=Decimal("41.6"),
+            final_take_profit=Decimal("43.2"),
+            stop_loss=Decimal("38.8"),
+        ),
+    )
+    swing_decision = SwingDecision(
+        agent_id="swing_momentum",
+        symbol="XYZ",
+        status=SwingStatus.WATCH,
+        cap_tier=CapTier.MID,
+        hold_plan=HoldPlan(
+            horizon=StrategyHorizon.SWING,
+            min_hold_sessions=1,
+            typical_hold_sessions=4,
+            max_hold_sessions=10,
+            summary="swing",
+        ),
+    )
+
+    with (
+        patch("trading_lab.pipeline.paper_agents.resolve_market_data", return_value=md),
+        patch("trading_lab.pipeline.paper_agents.AlpacaPaperBroker", return_value=broker),
+        patch(
+            "trading_lab.pipeline.paper_agents.evaluate_mid_cap_sniper",
+            return_value=sniper_decision,
+        ),
+        patch("trading_lab.pipeline.paper_agents.swing_power_hour", return_value=False),
+        patch("trading_lab.pipeline.swing_tick.resolve_market_data", return_value=md),
+        patch("trading_lab.pipeline.swing_tick.AlpacaPaperBroker", return_value=broker),
+        patch(
+            "trading_lab.pipeline.swing_tick.evaluate_swing_momentum", return_value=swing_decision
+        ),
+        patch("trading_lab.pipeline.swing_tick.swing_power_hour", return_value=False),
+    ):
+        out = run_symbol_paper_tick(
+            symbol="XYZ",
+            journal_path=str(tmp_path / "j.sqlite"),
+            market_cap_usd=Decimal("5000000000"),
+        )
+
+    assert out["sniper_agent"] == "mid_cap_sniper"
+    assert out["sniper"]["status"] == "ORDER_SUBMITTED"
     assert broker.submit_bracket_order.call_count == 1

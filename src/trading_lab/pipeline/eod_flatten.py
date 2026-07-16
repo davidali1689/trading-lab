@@ -13,7 +13,7 @@ from trading_lab.config.secrets import has_alpaca_keys
 
 logger = logging.getLogger("trading_lab.eod_flatten")
 
-SNIPER_AGENTS = frozenset({"large_cap_sniper", "speculative_sniper"})
+SNIPER_AGENTS = frozenset({"large_cap_sniper", "mid_cap_sniper", "speculative_sniper"})
 
 
 def flatten_sniper_paper(journal_path: str) -> list[dict[str, Any]]:

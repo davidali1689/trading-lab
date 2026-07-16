@@ -8,11 +8,13 @@ from decimal import Decimal
 from uuid import uuid4
 
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER
+from trading_lab.agents.sniper.mid_cap import MID_CAP_SNIPER
 from trading_lab.agents.sniper.shared_execution import SniperStatus
 from trading_lab.agents.sniper.speculative import SPECULATIVE_SNIPER
 from trading_lab.broker.alpaca import AlpacaPaperBroker
 from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
+from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
@@ -49,19 +51,19 @@ LARGE_CAP_SYMBOLS = frozenset(
 )
 
 
-def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str | None:
-    """Return large_cap_sniper | speculative_sniper | None (mid-cap sniper gap)."""
+def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str:
+    """Return large_cap_sniper | mid_cap_sniper | speculative_sniper."""
     sym = symbol.upper()
     if sym in LARGE_CAP_SYMBOLS:
         return LARGE_CAP_SNIPER.agent_id
     if market_cap_usd is None:
         # Screener watchlist default → speculative
         return SPECULATIVE_SNIPER.agent_id
-    if market_cap_usd < SPECULATIVE_SNIPER.max_market_cap_usd:
+    if market_cap_usd < MID_CAP_SNIPER.min_market_cap_usd:
         return SPECULATIVE_SNIPER.agent_id
-    if market_cap_usd >= LARGE_CAP_SNIPER.min_market_cap_usd:
-        return LARGE_CAP_SNIPER.agent_id
-    return None
+    if market_cap_usd < MID_CAP_SNIPER.max_market_cap_usd:
+        return MID_CAP_SNIPER.agent_id
+    return LARGE_CAP_SNIPER.agent_id
 
 
 def resolve_market_cap(symbol: str, explicit: Decimal | None = None) -> Decimal | None:
@@ -154,6 +156,8 @@ def run_sniper_paper_tick(
     )
     if agent_id == SPECULATIVE_SNIPER.agent_id:
         decision = evaluate_speculative_sniper(ctx, mode=RunMode.PAPER)
+    elif agent_id == MID_CAP_SNIPER.agent_id:
+        decision = evaluate_mid_cap_sniper(ctx, mode=RunMode.PAPER)
     else:
         decision = evaluate_large_cap_sniper(ctx, mode=RunMode.PAPER)
 
@@ -214,28 +218,19 @@ def run_symbol_paper_tick(
         "skips": 0,
     }
 
-    if sniper_id is None:
-        results["sniper"] = {
-            "status": "SKIPPED",
-            "detail": "mid_cap_no_intraday_sniper",
-            "found_by_agent": None,
-            "orders": 0,
-            "skips": 0,
-        }
-    else:
-        sniper_out = run_sniper_paper_tick(
-            symbol=symbol,
-            journal_path=journal_path,
-            agent_id=sniper_id,
-            market_cap_usd=cap,
-            broker=broker,
-            notional_usd=notional_usd,
-        )
-        results["sniper"] = sniper_out
-        results["orders"] += int(sniper_out.get("orders") or 0)
-        results["skips"] += int(sniper_out.get("skips") or 0)
-        results["found_by_agent"] = sniper_out.get("found_by_agent")
-        results["status"] = sniper_out.get("status")
+    sniper_out = run_sniper_paper_tick(
+        symbol=symbol,
+        journal_path=journal_path,
+        agent_id=sniper_id,
+        market_cap_usd=cap,
+        broker=broker,
+        notional_usd=notional_usd,
+    )
+    results["sniper"] = sniper_out
+    results["orders"] += int(sniper_out.get("orders") or 0)
+    results["skips"] += int(sniper_out.get("skips") or 0)
+    results["found_by_agent"] = sniper_out.get("found_by_agent")
+    results["status"] = sniper_out.get("status")
 
     swing_out = run_swing_paper_tick(
         symbol=symbol,

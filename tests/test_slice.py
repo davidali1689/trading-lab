@@ -79,7 +79,12 @@ def test_vertical_slice_and_grafana_export(tmp_path: Path):
 def test_walk_forward_lists_all_agents(tmp_path: Path):
     report = walk_forward_bakeoff(journal_path=str(tmp_path / "wf.sqlite"))
     ids = {a.agent_id for a in report.agents}
-    assert ids == {"large_cap_sniper", "speculative_sniper", "swing_momentum"}
+    assert ids == {
+        "large_cap_sniper",
+        "mid_cap_sniper",
+        "speculative_sniper",
+        "swing_momentum",
+    }
 
 
 def test_smoke_eval():

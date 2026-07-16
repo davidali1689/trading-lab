@@ -38,10 +38,12 @@ def test_vendors_locked():
 def test_agents_registered():
     assert set(AGENTS) == {
         "large_cap_sniper",
+        "mid_cap_sniper",
         "speculative_sniper",
         "swing_momentum",
     }
     assert get_agent("swing_momentum").family == "swing"
+    assert get_agent("mid_cap_sniper").family == "sniper"
 
 
 def test_notes_cover_families():
