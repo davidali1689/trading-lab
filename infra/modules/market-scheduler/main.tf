@@ -82,9 +82,14 @@ locals {
       input       = jsonencode({ phase = "eod" })
     }
     postmarket = {
-      description = "18:00 ET next-day prep then idle (no entries)"
+      description = "18:00 ET next-day prep + miss harvest (no entries)"
       expression  = "cron(0 18 ? * MON-FRI *)"
       input       = jsonencode({ phase = "postmarket" })
+    }
+    weekly_coaches = {
+      description = "Friday 18:05 ET scorecard + strategy coaches (weekend pack)"
+      expression  = "cron(5 18 ? * FRI *)"
+      input       = jsonencode({ phase = "weekly_coaches" })
     }
   }
 }

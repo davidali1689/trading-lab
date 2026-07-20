@@ -57,7 +57,13 @@ resource "aws_iam_role" "lambda" {
     }]
   })
 
-  tags = var.common_tags
+  # Tag IAM role (not only Lambda) for Bedrock cost attribution by principal.
+  tags = merge(var.common_tags, {
+    Application = try(var.common_tags["Application"], var.name_prefix)
+    Repo        = try(var.common_tags["Repo"], var.name_prefix)
+    BedrockCaller = "true"
+    Workload      = "trading-lab-worker"
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
@@ -102,7 +108,8 @@ resource "aws_iam_role_policy" "vendor_secrets" {
   })
 }
 
-# EOD post-mortem coach only (MOCK_BEDROCK=true until model access enabled).
+# EOD post-mortem + Friday strategy coaches (Grok Mantle / Converse).
+# MOCK_BEDROCK=true until model access enabled.
 resource "aws_iam_role_policy" "bedrock_coach" {
   name = "${local.lambda_name}-bedrock-coach"
   role = aws_iam_role.lambda.id
@@ -114,6 +121,7 @@ resource "aws_iam_role_policy" "bedrock_coach" {
       Action = [
         "bedrock:InvokeModel",
         "bedrock:Converse",
+        "bedrock:InvokeModelWithResponseStream",
       ]
       Resource = [
         "arn:aws:bedrock:*::foundation-model/*",

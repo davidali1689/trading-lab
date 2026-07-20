@@ -61,9 +61,14 @@ SCHEDULES = {
         "input": {"phase": "eod"},
     },
     "postmarket": {
-        "description": "18:00 ET next-day prep (no entries) then idle",
+        "description": "18:00 ET next-day prep + miss harvest (no entries)",
         "schedule_expression": "cron(0 18 ? * MON-FRI *)",
         "input": {"phase": "postmarket"},
+    },
+    "weekly_coaches": {
+        "description": "Friday 18:05 ET scorecard + four coaches → weekend pack",
+        "schedule_expression": "cron(5 18 ? * FRI *)",
+        "input": {"phase": "weekly_coaches"},
     },
 }
 

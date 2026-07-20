@@ -42,10 +42,15 @@ App wiring: see [`grafana/README.md`](grafana/README.md). Orchestrator routes vi
 
 - `api/` FastAPI app
 - `tests/`
-- `infra/` OpenTofu (lambda-worker + vendor-secrets)
+- `infra/` OpenTofu (lambda-worker, vendor-secrets, coach-iam, scheduler)
 - `grafana/` dashboards + setup notes
 - `Dockerfile` (Lambda Web Adapter)
 - `pyproject.toml` + `uv.lock`
+- `README.md` / `CHANGELOG.md`
+
+## Bedrock cost tags
+
+OpenTofu applies `Application=trading-lab` and `Repo=trading-lab` (plus `BedrockCaller=true`) on the Lambda worker IAM role and the `*-strategy-coach` role. After the first real Bedrock/Mantle call, activate those keys under Billing → Cost allocation tags.
 
 ## Pin
 

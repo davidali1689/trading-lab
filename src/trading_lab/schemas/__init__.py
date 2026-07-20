@@ -5,6 +5,7 @@ from trading_lab.schemas.backtest import (
     BacktestWindow,
 )
 from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
+from trading_lab.schemas.misses import CoachProposal, DailyMissReport, MissBucket, MissRecord
 from trading_lab.schemas.trades import (
     ExitReason,
     RunMode,
@@ -20,8 +21,12 @@ __all__ = [
     "BacktestReport",
     "BacktestRunSpec",
     "BacktestWindow",
+    "CoachProposal",
+    "DailyMissReport",
     "ExitReason",
     "HoldPlan",
+    "MissBucket",
+    "MissRecord",
     "RunMode",
     "Side",
     "SkipEvent",

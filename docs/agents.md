@@ -126,3 +126,18 @@ Mid-cap gap closed: $2B–$10B → `mid_cap_sniper`.
 
 `sim / backtest → paper → live` only after journal expectancy looks sane.
 Sizing always tracks platform equity (paper ~$100k today → ~$20k/slice).
+
+---
+
+## Improvement loop (missed gainers)
+
+Ops-only — **never** places orders.
+
+| Cadence | Who | Output |
+|---------|-----|--------|
+| Daily 18:00 `postmarket` | Deterministic harvest | `misses/{day}/report.json` + `by_agent/*.json` |
+| Fri 18:05 `weekly_coaches` | Scorecard job + 4 coaches | `scorecards/{week}.json` + `proposals/{week}/*.json` |
+
+Buckets: **A** never watchlisted, **B** skipped/no ENTER, **C** traded but weak capture.  
+Proposals stay `pending_green_light` until you approve; guardrails are not tunable by coaches.  
+Model: `COACH_MODEL_ID` (default Grok 4.3, `COACH_REASONING_EFFORT=high`).

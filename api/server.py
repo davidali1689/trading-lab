@@ -16,6 +16,8 @@ from fastapi import Body, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
+from trading_lab.improvement.friday_review import run_friday_review
+from trading_lab.improvement.miss_harvest import run_and_persist_miss_harvest
 from trading_lab.improvement.postmortem import run_and_persist_postmortem
 from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
@@ -58,7 +60,7 @@ JOURNAL_PATH = os.environ.get("JOURNAL_PATH", "/tmp/trading-lab-journal.sqlite")
 class PhaseRequest(BaseModel):
     phase: str = Field(
         ...,
-        description="premarket | tick | eod | postmarket | status",
+        description="premarket | tick | eod | postmarket | weekly_coaches | status",
     )
     force: bool = False
     symbol: str | None = None
@@ -412,6 +414,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         persist = persist_journal_to_s3(JOURNAL_PATH)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
+        miss = run_and_persist_miss_harvest(JOURNAL_PATH)
         next_day_notes = {
             "tomorrow_watchlist": wl.symbols,
             "watchlist": wl.to_dict(),
@@ -420,15 +423,41 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             "no_entries_after_hours": True,
             "hydrate": hydrate,
             "persist": persist,
+            "miss_harvest": {
+                "ok": miss.get("ok"),
+                "detail": (miss.get("report") or {}).get("detail"),
+                "persist": miss.get("persist"),
+            },
         }
         results.append(next_day_notes)
         detail = (
             f"18:00 postmarket prep watchlist={wl.symbols} source={wl.source} "
-            f"({wl.detail}) — idle until 08:00"
+            f"({wl.detail}) miss_harvest={miss.get('ok')} — idle until 08:00"
         )
         logger.info(detail)
         return PhaseResult(
             ok=True,
+            phase=phase,
+            clock_phase=clock.value,
+            detail=detail,
+            results=results,
+            ts=datetime.now(timezone.utc).isoformat(),
+        )
+
+    if phase == "weekly_coaches":
+        # Friday 18:05 — scorecard + four coaches (weekend review pack).
+        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
+        pack = run_friday_review(JOURNAL_PATH)
+        results.append({"hydrate": hydrate, "friday_review": pack})
+        detail = (
+            f"friday_review week={pack.get('week_id')} "
+            f"scorecard={pack.get('scorecard_summary')} "
+            f"coaches_ok={ (pack.get('coaches') or {}).get('ok') } "
+            f"(pending_green_light)"
+        )
+        logger.info(detail)
+        return PhaseResult(
+            ok=bool(pack.get("ok")),
             phase=phase,
             clock_phase=clock.value,
             detail=detail,

@@ -48,6 +48,8 @@ def test_schedules_include_postmarket_and_8am():
     assert isinstance(expr, str)
     assert expr.startswith("cron(0 8")
     assert "postmarket" in SCHEDULES
+    assert "weekly_coaches" in SCHEDULES
+    assert "FRI" in SCHEDULES["weekly_coaches"]["schedule_expression"]
     assert "18:00" in process_window_label() or "18:00" in SCHEDULES["postmarket"]["description"]
 
 

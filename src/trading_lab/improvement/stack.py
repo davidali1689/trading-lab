@@ -23,7 +23,10 @@ class ImprovementStack(BaseModel):
         default_factory=lambda: [
             "Langfuse: trace coach prompts, scores, latency (not entry decisions)",
             "EOD Bedrock post-mortem: digest journal + narrative (MOCK_BEDROCK default)",
+            "Postmarket miss harvest → S3 misses/ (deterministic A/B/C)",
+            "Friday: four strategy coaches (Grok 4.3 high) → proposals/ pending green-light",
             "Never let Langfuse/LLM override risk gate or ENTER gates",
+            "Strategy overlay apply only after human approval (no auto-rewrite)",
         ]
     )
     do_not_use_for_entries: list[str] = Field(

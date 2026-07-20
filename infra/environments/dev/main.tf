@@ -15,9 +15,13 @@ provider "aws" {
   region = var.aws_region
   default_tags {
     tags = {
+      Application = "trading-lab"
+      Repo        = "trading-lab"
       Project     = "trading-lab"
       ManagedBy   = "opentofu"
       Environment = var.environment
+      CostCenter  = "trading-lab"
+      Client      = "internal"
     }
   }
 }
@@ -68,9 +72,21 @@ locals {
     var.ecr_repository_url != "" ? "${var.ecr_repository_url}:${var.image_tag}" : ""
   )
   common_tags = {
+    Application = "trading-lab"
+    Repo        = "trading-lab"
     Project     = "trading-lab"
     Environment = var.environment
+    CostCenter  = "trading-lab"
+    Client      = "internal"
+    ManagedBy   = "opentofu"
   }
+}
+
+module "coach_iam" {
+  source             = "../../modules/coach-iam"
+  name_prefix        = var.name_prefix
+  common_tags        = local.common_tags
+  journal_bucket_arn = module.journal_bucket.bucket_arn
 }
 
 module "journal_bucket" {
@@ -130,6 +146,10 @@ output "premarket_alarm" {
   value = try(module.market_scheduler[0].premarket_alarm_name, null)
 }
 
+output "strategy_coach_role_arn" {
+  value = module.coach_iam.coach_role_arn
+}
+
 output "auto_run_note" {
-  value = "ET Mon-Fri: 08:00 prep → 09:30-16:00 ticks → 16:05 eod → 18:00 next-day prep. Entries RTH only."
+  value = "ET Mon-Fri: 08:00 prep → 09:30-16:00 ticks → 16:05 eod → 18:00 miss harvest; Fri 18:05 coaches. Entries RTH only."
 }
