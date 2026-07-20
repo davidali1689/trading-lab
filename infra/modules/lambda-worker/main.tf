@@ -108,8 +108,7 @@ resource "aws_iam_role_policy" "vendor_secrets" {
   })
 }
 
-# EOD post-mortem + Friday strategy coaches (Grok Mantle / Converse).
-# MOCK_BEDROCK=true until model access enabled.
+# EOD post-mortem + Friday strategy coaches (Bedrock Converse / Mantle).
 resource "aws_iam_role_policy" "bedrock_coach" {
   name = "${local.lambda_name}-bedrock-coach"
   role = aws_iam_role.lambda.id

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Production Lambda: `MOCK_BEDROCK=false` so Friday coaches run live Bedrock analysis (`moonshot.kimi-k2-thinking`, Nova Pro fallback). Grok when Mantle access is enabled via `COACH_MODEL_ID`.
+
 ### Added
 
 - **Miss harvest** (`postmarket` 18:00 ET): deterministic top liquid gainers vs journal/watchlist (buckets A/B/C), persisted under `s3://…/misses/{day}/` and per-agent shards. Penny floor remains `$5`.

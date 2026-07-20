@@ -194,20 +194,23 @@ module "lambda_worker" {
   journal_bucket_arn = module.journal_bucket.bucket_arn
   vendor_secret_arn  = module.vendor_secrets.secret_arn
   environment_variables = {
-    TRADING_MODE           = "paper"
-    USE_MOCK_BARS          = "false"
-    WATCHLIST_SIZE         = tostring(var.watchlist_size)
-    JOURNAL_PATH           = "/tmp/trading-lab-journal.sqlite"
-    JOURNAL_S3_BUCKET      = module.journal_bucket.bucket_name
-    KILL_SWITCH            = var.kill_switch
-    TZ                     = "UTC"
-    SECRET_ARN             = module.vendor_secrets.secret_arn
-    ALPACA_PAPER           = "true"
-    MOCK_BEDROCK           = "true"
-    BEDROCK_MODEL_ID       = "amazon.nova-lite-v1:0"
-    COACH_MODEL_ID         = "xai.grok-4.3"
-    COACH_REASONING_EFFORT = "high"
-    MISS_HARVEST_TOP_N     = "20"
+    TRADING_MODE      = "paper"
+    USE_MOCK_BARS     = "false"
+    WATCHLIST_SIZE    = tostring(var.watchlist_size)
+    JOURNAL_PATH      = "/tmp/trading-lab-journal.sqlite"
+    JOURNAL_S3_BUCKET = module.journal_bucket.bucket_name
+    KILL_SWITCH       = var.kill_switch
+    TZ                = "UTC"
+    SECRET_ARN        = module.vendor_secrets.secret_arn
+    ALPACA_PAPER      = "true"
+    # Live coaches for Fri weekend pack (CI still sets MOCK_BEDROCK=true in tests).
+    MOCK_BEDROCK     = "false"
+    BEDROCK_MODEL_ID = "amazon.nova-lite-v1:0"
+    # Kimi is enabled in us-east-1 today; set COACH_MODEL_ID=xai.grok-4.3 when Mantle/Grok is on.
+    COACH_MODEL_ID          = "moonshot.kimi-k2-thinking"
+    COACH_FALLBACK_MODEL_ID = "amazon.nova-pro-v1:0"
+    COACH_REASONING_EFFORT  = "high"
+    MISS_HARVEST_TOP_N      = "20"
   }
 }
 

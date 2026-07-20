@@ -35,7 +35,7 @@ See [`docs/agents.md`](docs/agents.md).
    - **Four coaches** (Grok 4.3 `effort=high`): each reads misses + its scorecard slice → `proposals/{week}/{agent_id}.json` (`pending_green_light`).
 3. **You** review over the weekend; overlay apply is manual — coaches cannot submit orders.
 
-Coach model env: `COACH_MODEL_ID` (default `xai.grok-4.3`), `COACH_REASONING_EFFORT` (default `high`). CI uses `MOCK_BEDROCK=true`.
+Coach model env: `COACH_MODEL_ID` (default `moonshot.kimi-k2-thinking` — enabled in us-east-1), `COACH_FALLBACK_MODEL_ID`, `COACH_REASONING_EFFORT`. Production Lambda uses `MOCK_BEDROCK=false`; CI keeps mock on.
 
 ## Cost tags (Bedrock)
 

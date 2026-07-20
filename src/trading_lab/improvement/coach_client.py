@@ -1,4 +1,4 @@
-"""Coach model client — Grok 4.3 (high) via Bedrock Mantle; mock for CI."""
+"""Coach model client — live Bedrock coaches (Kimi / Grok); mock for CI."""
 
 from __future__ import annotations
 
@@ -15,7 +15,11 @@ logger = logging.getLogger("trading_lab.improvement.coach_client")
 
 
 def coach_model_id() -> str:
-    return os.environ.get("COACH_MODEL_ID", "xai.grok-4.3").strip()
+    return os.environ.get("COACH_MODEL_ID", "moonshot.kimi-k2-thinking").strip()
+
+
+def coach_fallback_model_id() -> str:
+    return os.environ.get("COACH_FALLBACK_MODEL_ID", "amazon.nova-pro-v1:0").strip()
 
 
 def coach_effort() -> str:
@@ -33,8 +37,13 @@ class CoachClient:
         region: str | None = None,
     ) -> None:
         self.model_id = model_id or coach_model_id()
+        self.fallback_model_id = coach_fallback_model_id()
         self.mock = mock_bedrock_enabled() if mock is None else mock
-        self.region = region or os.environ.get("AWS_REGION", "us-east-1")
+        self.region = (
+            region
+            or os.environ.get("COACH_AWS_REGION")
+            or os.environ.get("AWS_REGION", "us-east-1")
+        )
         self.effort = coach_effort()
 
     def analyze(self, system: str, user_message: str, *, max_tokens: int = 2048) -> str:
@@ -45,20 +54,54 @@ class CoachClient:
                 f"Review miss harvest; propose bounded gate/watchlist tweaks. "
                 f"User payload chars={len(user_message)}."
             )
-        # Prefer Mantle OpenAI-compatible API for xAI Grok; fall back to Converse.
-        if self.model_id.startswith("xai."):
+        try:
+            return self._invoke(self.model_id, system, user_message, max_tokens=max_tokens)
+        except Exception as exc:  # noqa: BLE001
+            if not self.fallback_model_id or self.fallback_model_id == self.model_id:
+                raise
+            logger.warning(
+                "coach model %s failed (%s); trying fallback %s",
+                self.model_id,
+                exc,
+                self.fallback_model_id,
+            )
+            text = self._invoke(
+                self.fallback_model_id,
+                system,
+                user_message,
+                max_tokens=max_tokens,
+            )
+            self.model_id = self.fallback_model_id
+            return text
+
+    def _invoke(
+        self,
+        model_id: str,
+        system: str,
+        user_message: str,
+        *,
+        max_tokens: int,
+    ) -> str:
+        if model_id.startswith("xai."):
             try:
-                return self._mantle_chat(system, user_message, max_tokens=max_tokens)
+                return self._mantle_chat(model_id, system, user_message, max_tokens=max_tokens)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("mantle chat failed, trying converse: %s", exc)
-        return self._converse(system, user_message, max_tokens=max_tokens)
+        return self._converse(model_id, system, user_message, max_tokens=max_tokens)
 
-    def _converse(self, system: str, user_message: str, *, max_tokens: int) -> str:
+    def _converse(
+        self,
+        model_id: str,
+        system: str,
+        user_message: str,
+        *,
+        max_tokens: int,
+    ) -> str:
         import boto3
 
         client = boto3.client("bedrock-runtime", region_name=self.region)
         response = client.converse(
-            modelId=self.model_id,
+            modelId=model_id,
             messages=[
                 {
                     "role": "user",
@@ -69,7 +112,14 @@ class CoachClient:
         )
         return response["output"]["message"]["content"][0]["text"]
 
-    def _mantle_chat(self, system: str, user_message: str, *, max_tokens: int) -> str:
+    def _mantle_chat(
+        self,
+        model_id: str,
+        system: str,
+        user_message: str,
+        *,
+        max_tokens: int,
+    ) -> str:
         """SigV4 POST to bedrock-mantle OpenAI chat completions."""
         import boto3
         from botocore.auth import SigV4Auth
@@ -77,7 +127,7 @@ class CoachClient:
 
         url = f"https://bedrock-mantle.{self.region}.api.aws/openai/v1/chat/completions"
         payload: dict[str, Any] = {
-            "model": self.model_id,
+            "model": model_id,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_message},
@@ -85,7 +135,6 @@ class CoachClient:
             "max_tokens": max_tokens,
             "temperature": 0.2,
         }
-        # Grok reasoning effort when supported
         if self.effort in {"none", "low", "medium", "high"}:
             payload["reasoning_effort"] = self.effort
 
