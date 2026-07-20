@@ -44,8 +44,7 @@ def run_friday_review(
         "coaches": coaches,
         "miss_report_detail": report.detail,
         "note": (
-            "Weekend review pack — green-light proposals manually; "
-            "propose_revert is a flag only"
+            "Weekend review pack — green-light proposals manually; propose_revert is a flag only"
         ),
     }
     logger.info(

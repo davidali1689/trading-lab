@@ -18,7 +18,7 @@ from trading_lab.improvement.miss_harvest import build_miss_report, run_and_pers
 from trading_lab.improvement.scorecard import build_weekly_scorecard, week_id_for
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.alpaca_screener import ScreenerRow
-from trading_lab.schemas.misses import DailyMissReport, MissBucket
+from trading_lab.schemas.misses import MissBucket
 from trading_lab.schemas.scorecard import AgentScorecard, Trend, WeeklyScorecard
 from trading_lab.schemas.trades import ExitReason, RunMode, Side, SkipEvent, SkipReason, TradeRecord
 
@@ -146,12 +146,18 @@ def test_api_weekly_coaches_friday_pack(monkeypatch: pytest.MonkeyPatch, tmp_pat
         "week_id": "2026-W29",
         "scorecard_summary": "large_cap_sniper:worse; mid_cap_sniper:flat",
         "scorecard": {"week_id": "2026-W29", "summary": "large_cap_sniper:worse"},
-        "coaches": {"ok": True, "coaches": [{"agent_id": a, "ok": True} for a in (
-            "large_cap_sniper",
-            "mid_cap_sniper",
-            "speculative_sniper",
-            "swing_momentum",
-        )]},
+        "coaches": {
+            "ok": True,
+            "coaches": [
+                {"agent_id": a, "ok": True}
+                for a in (
+                    "large_cap_sniper",
+                    "mid_cap_sniper",
+                    "speculative_sniper",
+                    "swing_momentum",
+                )
+            ],
+        },
     }
     with (
         patch("api.server.hydrate_journal_from_s3", return_value={"ok": True}),

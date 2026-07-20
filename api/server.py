@@ -452,7 +452,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         detail = (
             f"friday_review week={pack.get('week_id')} "
             f"scorecard={pack.get('scorecard_summary')} "
-            f"coaches_ok={ (pack.get('coaches') or {}).get('ok') } "
+            f"coaches_ok={(pack.get('coaches') or {}).get('ok')} "
             f"(pending_green_light)"
         )
         logger.info(detail)

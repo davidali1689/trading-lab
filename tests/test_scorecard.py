@@ -8,19 +8,21 @@ from pathlib import Path
 from uuid import uuid4
 
 from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED
-from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.coach_client import CoachClient
+from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.scorecard import (
     build_weekly_scorecard,
     prior_week_id,
     week_id_for,
 )
 from trading_lab.journal.sqlite import SqliteJournal
-from trading_lab.schemas.scorecard import Trend, WeeklyScorecard, AgentScorecard
+from trading_lab.schemas.scorecard import AgentScorecard, Trend, WeeklyScorecard
 from trading_lab.schemas.trades import ExitReason, RunMode, Side, TradeRecord
 
 
-def _trade(j: SqliteJournal, *, agent: str, symbol: str, entry: Decimal, exit_px: Decimal, ts: datetime) -> None:
+def _trade(
+    j: SqliteJournal, *, agent: str, symbol: str, entry: Decimal, exit_px: Decimal, ts: datetime
+) -> None:
     j.write_trade(
         TradeRecord(
             trade_id=uuid4(),

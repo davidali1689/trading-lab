@@ -74,9 +74,7 @@ def _journal_window(
     if not db_path.exists():
         return pnls, skips
     with sqlite3.connect(db_path) as conn:
-        for row in conn.execute(
-            "SELECT found_by_agent, pnl_usd, entry_ts FROM trades"
-        ):
+        for row in conn.execute("SELECT found_by_agent, pnl_usd, entry_ts FROM trades"):
             agent, pnl_s, ts_s = str(row[0]), str(row[1] or "0"), str(row[2])
             ts = _parse_ts(ts_s)
             if ts is None or not (start <= ts < end):

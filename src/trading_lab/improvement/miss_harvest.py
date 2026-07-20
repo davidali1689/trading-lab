@@ -230,7 +230,11 @@ def persist_miss_report(
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
     body = json.dumps(report.to_dict(), indent=2)
     if not bucket:
-        return {"ok": False, "detail": "JOURNAL_S3_BUCKET unset — report not uploaded", "local": True}
+        return {
+            "ok": False,
+            "detail": "JOURNAL_S3_BUCKET unset — report not uploaded",
+            "local": True,
+        }
 
     try:
         import boto3

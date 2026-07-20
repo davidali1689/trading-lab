@@ -8,8 +8,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED
-from trading_lab.improvement.coaches import run_strategy_coach, run_weekly_coaches
 from trading_lab.improvement.coach_client import CoachClient
+from trading_lab.improvement.coaches import run_strategy_coach, run_weekly_coaches
 from trading_lab.improvement.miss_harvest import build_miss_report
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.alpaca_screener import ScreenerRow

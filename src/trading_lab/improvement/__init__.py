@@ -6,13 +6,13 @@ from trading_lab.improvement.miss_harvest import (
     build_miss_report,
     run_and_persist_miss_harvest,
 )
-from trading_lab.improvement.scorecard import build_weekly_scorecard
 from trading_lab.improvement.postmortem import (
     digest_journal,
     persist_postmortem,
     run_and_persist_postmortem,
     run_postmortem,
 )
+from trading_lab.improvement.scorecard import build_weekly_scorecard
 from trading_lab.improvement.stack import IMPROVEMENT, ImprovementStack
 
 __all__ = [
