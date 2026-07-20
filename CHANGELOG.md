@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Production Lambda: `MOCK_BEDROCK=false` so Friday coaches run live Bedrock analysis (`moonshot.kimi-k2-thinking`, Nova Pro fallback). Grok when Mantle access is enabled via `COACH_MODEL_ID`.
+- Production Lambda: `MOCK_BEDROCK=false`; Friday coaches use **Grok 4.3** (Mantle) with Kimi fallback; each coach analyzes up to **5** daily harvest shards (`COACH_MISS_DAYS=5`).
 
 ### Added
 

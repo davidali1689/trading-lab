@@ -32,13 +32,23 @@ def _week_id(ts: datetime | None = None) -> str:
     return f"{iso.year}-W{iso.week:02d}"
 
 
+def _coach_miss_days(default: int = 5) -> int:
+    """Trading-week harvest shards each coach reads (default Mon–Fri = 5)."""
+    raw = os.environ.get("COACH_MISS_DAYS", str(default))
+    try:
+        return max(1, min(int(raw), 10))
+    except ValueError:
+        return default
+
+
 def _load_week_misses_from_s3(
     *,
     bucket: str | None = None,
     agent_id: str,
-    max_days: int = 7,
+    max_days: int | None = None,
 ) -> list[dict[str, Any]]:
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
+    max_days = _coach_miss_days() if max_days is None else max_days
     if not bucket:
         return []
     try:

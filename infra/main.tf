@@ -204,12 +204,13 @@ module "lambda_worker" {
     SECRET_ARN        = module.vendor_secrets.secret_arn
     ALPACA_PAPER      = "true"
     # Live coaches for Fri weekend pack (CI still sets MOCK_BEDROCK=true in tests).
-    MOCK_BEDROCK     = "false"
-    BEDROCK_MODEL_ID = "amazon.nova-lite-v1:0"
-    # Kimi is enabled in us-east-1 today; set COACH_MODEL_ID=xai.grok-4.3 when Mantle/Grok is on.
-    COACH_MODEL_ID          = "moonshot.kimi-k2-thinking"
-    COACH_FALLBACK_MODEL_ID = "amazon.nova-pro-v1:0"
+    MOCK_BEDROCK            = "false"
+    BEDROCK_MODEL_ID        = "amazon.nova-lite-v1:0"
+    COACH_MODEL_ID          = "xai.grok-4.3"
+    COACH_FALLBACK_MODEL_ID = "moonshot.kimi-k2-thinking"
+    COACH_AWS_REGION        = "us-east-1"
     COACH_REASONING_EFFORT  = "high"
+    COACH_MISS_DAYS         = "5" # Mon–Fri harvest shards per strategy coach
     MISS_HARVEST_TOP_N      = "20"
   }
 }
