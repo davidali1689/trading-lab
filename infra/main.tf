@@ -117,6 +117,12 @@ variable "watchlist_size" {
   default     = 12
 }
 
+variable "enable_coach_iam" {
+  description = "Create dedicated strategy-coach IAM role (needs GHA iam:CreateRole)."
+  type        = bool
+  default     = false
+}
+
 variable "kill_switch" {
   type    = string
   default = "0"
@@ -164,7 +170,11 @@ module "vendor_secrets" {
   common_tags = local.common_tags
 }
 
+# Optional: dedicated coach IAM for future AgentCore. Disabled until
+# platform-gha-app-deploy-apply has iam:CreateRole for this name pattern.
+# v1 coaches run on the Lambda worker role (tagged Application/Repo/BedrockCaller).
 module "coach_iam" {
+  count              = var.enable_coach_iam ? 1 : 0
   source             = "./modules/coach-iam"
   name_prefix        = var.name_prefix
   common_tags        = local.common_tags
@@ -234,7 +244,7 @@ output "journal_bucket" {
 
 output "strategy_coach_role_arn" {
   description = "Tagged IAM role for strategy coaches / future AgentCore (Bedrock cost attribution)."
-  value       = module.coach_iam.coach_role_arn
+  value       = try(module.coach_iam[0].coach_role_arn, null)
 }
 
 output "vendor_secret_arn" {

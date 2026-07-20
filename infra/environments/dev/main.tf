@@ -82,7 +82,13 @@ locals {
   }
 }
 
+variable "enable_coach_iam" {
+  type    = bool
+  default = false
+}
+
 module "coach_iam" {
+  count              = var.enable_coach_iam ? 1 : 0
   source             = "../../modules/coach-iam"
   name_prefix        = var.name_prefix
   common_tags        = local.common_tags
@@ -147,7 +153,7 @@ output "premarket_alarm" {
 }
 
 output "strategy_coach_role_arn" {
-  value = module.coach_iam.coach_role_arn
+  value = try(module.coach_iam[0].coach_role_arn, null)
 }
 
 output "auto_run_note" {
