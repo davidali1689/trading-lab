@@ -59,8 +59,8 @@ resource "aws_iam_role" "lambda" {
 
   # Tag IAM role (not only Lambda) for Bedrock cost attribution by principal.
   tags = merge(var.common_tags, {
-    Application = try(var.common_tags["Application"], var.name_prefix)
-    Repo        = try(var.common_tags["Repo"], var.name_prefix)
+    Application   = try(var.common_tags["Application"], var.name_prefix)
+    Repo          = try(var.common_tags["Repo"], var.name_prefix)
     BedrockCaller = "true"
     Workload      = "trading-lab-worker"
   })
