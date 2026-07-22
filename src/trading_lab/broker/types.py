@@ -23,6 +23,8 @@ class BrokerPosition(BaseModel):
     side: str
     market_value: Decimal = Decimal("0")
     unrealized_pl: Decimal = Decimal("0")
+    avg_entry_price: Decimal = Decimal("0")
+    current_price: Decimal = Decimal("0")
 
 
 class BrokerOrderResult(BaseModel):
@@ -41,3 +43,19 @@ class BrokerPort(Protocol):
     def has_open_position(self, symbol: str) -> bool: ...
 
     def submit_bracket_order(self, intent: TradeIntent) -> BrokerOrderResult: ...
+
+    def list_open_orders(self, symbol: str | None = None) -> list[dict]: ...
+
+    def cancel_open_orders(self, symbol: str) -> list: ...
+
+    def submit_oco_exit(
+        self,
+        *,
+        symbol: str,
+        qty: Decimal,
+        stop_px: Decimal,
+        target_px: Decimal,
+        time_in_force: str = "gtc",
+    ) -> BrokerOrderResult: ...
+
+    def close_position(self, symbol: str, qty: Decimal | None = None) -> dict: ...

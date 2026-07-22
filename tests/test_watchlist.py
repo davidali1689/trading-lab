@@ -222,12 +222,15 @@ def test_premarket_builds_and_saves(monkeypatch: pytest.MonkeyPatch) -> None:
         patch("api.server.build_daily_watchlist", return_value=doc) as mock_build,
         patch("api.server.save_watchlist", return_value={"ok": True}) as mock_save,
         patch("api.server._holiday_noop", return_value=None),
+        patch("api.server.hydrate_journal_from_s3", return_value={"ok": True}),
+        patch("api.server.has_alpaca_keys", return_value=False),
     ):
         resp = client.post("/events", json={"phase": "premarket", "force": True})
     assert resp.status_code == 200
     mock_build.assert_called_once()
     mock_save.assert_called_once()
     assert "WXYZ" in resp.json()["detail"]
+    assert "exit_reassess=0" in resp.json()["detail"]
 
 
 def test_postmarket_builds_watchlist(monkeypatch: pytest.MonkeyPatch) -> None:

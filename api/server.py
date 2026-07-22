@@ -23,6 +23,7 @@ from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
+from trading_lab.pipeline.exit_reassess import reassess_open_exits
 from trading_lab.pipeline.paper_agents import run_symbol_paper_tick
 from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
@@ -275,10 +276,15 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         Path(JOURNAL_PATH).parent.mkdir(parents=True, exist_ok=True)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
+        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
+        exits: list[dict[str, Any]] = []
+        if has_alpaca_keys():
+            exits = reassess_open_exits(JOURNAL_PATH)
+            persist_journal_to_s3(JOURNAL_PATH)
         detail = (
             f"08:00 prep watchlist={wl.symbols} source={wl.source} "
             f"entries_enabled={entries_enabled()}; no ENTERs until RTH; "
-            f"scan={wl.detail}"
+            f"scan={wl.detail}; exit_reassess={len(exits)}"
         )
         logger.info(detail)
         print(json.dumps({"metric": "premarket_ok", "value": 1}))
@@ -287,7 +293,14 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             phase=phase,
             clock_phase=clock.value,
             detail=detail,
-            results=[{"watchlist": wl.to_dict(), "persist": persist_wl}],
+            results=[
+                {
+                    "watchlist": wl.to_dict(),
+                    "persist": persist_wl,
+                    "hydrate": hydrate,
+                    "exit_reassess": exits,
+                }
+            ],
             ts=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -324,6 +337,11 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 )
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         power = swing_power_hour()
+        exit_reassess: list[dict[str, Any]] = []
+        if _mode() == RunMode.PAPER and has_alpaca_keys():
+            # Safety net: day brackets may have expired overnight / mid-session.
+            exit_reassess = reassess_open_exits(JOURNAL_PATH)
+            results.append({"exit_reassess": exit_reassess})
         for sym in symbols:
             use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() in {
                 "1",
@@ -367,7 +385,10 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             ok=True,
             phase=phase,
             clock_phase=clock.value,
-            detail=(f"tick symbols={len(symbols)} power_hour={power} persist={persist.get('ok')}"),
+            detail=(
+                f"tick symbols={len(symbols)} power_hour={power} "
+                f"exit_reassess={len(exit_reassess)} persist={persist.get('ok')}"
+            ),
             results=results,
             ts=datetime.now(timezone.utc).isoformat(),
         )

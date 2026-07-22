@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from trading_lab.broker.types import BrokerAccount, BrokerOrderResult, BrokerPosition
 from trading_lab.config.secrets import TradingMode, load_secrets
+from trading_lab.schemas.hold import StrategyHorizon
 from trading_lab.schemas.trades import Side, TradeIntent
 
 PAPER_BASE = "https://paper-api.alpaca.markets"
@@ -92,6 +93,8 @@ class AlpacaPaperBroker:
                     side=str(row.get("side") or ""),
                     market_value=Decimal(str(row.get("market_value") or "0")),
                     unrealized_pl=Decimal(str(row.get("unrealized_pl") or "0")),
+                    avg_entry_price=Decimal(str(row.get("avg_entry_price") or "0")),
+                    current_price=Decimal(str(row.get("current_price") or "0")),
                 )
             )
         return out
@@ -100,18 +103,43 @@ class AlpacaPaperBroker:
         sym = symbol.upper()
         return any(p.symbol.upper() == sym and p.qty != 0 for p in self.get_open_positions())
 
+    def list_open_orders(self, symbol: str | None = None) -> list[dict]:
+        path = "/v2/orders?status=open&nested=true&limit=500"
+        if symbol:
+            path += f"&symbols={symbol.upper()}"
+        rows = self._request("GET", path)
+        if not isinstance(rows, list):
+            return []
+        return [r for r in rows if isinstance(r, dict)]
+
+    def cancel_open_orders(self, symbol: str) -> list:
+        """Cancel open orders for a symbol (before re-arm / flatten)."""
+        out: list = []
+        for order in self.list_open_orders(symbol):
+            oid = order.get("id")
+            if not oid:
+                continue
+            try:
+                out.append(self._request("DELETE", f"/v2/orders/{oid}"))
+            except RuntimeError:
+                continue
+        return out
+
     def submit_bracket_order(self, intent: TradeIntent) -> BrokerOrderResult:
         if intent.side != Side.LONG:
             raise RuntimeError("Alpaca paper broker v0 supports long entries only")
         if intent.stop_px is None or intent.target_px is None:
             raise RuntimeError("Bracket order requires stop_px and target_px")
 
+        # Swing holds overnight — GTC so TP/stop survive the session.
+        # Snipers stay day + EOD flatten.
+        tif = "gtc" if intent.hold_plan.horizon == StrategyHorizon.SWING else "day"
         body = {
             "symbol": intent.symbol.upper(),
             "qty": str(int(intent.qty)),
             "side": "buy",
             "type": "market",
-            "time_in_force": "day",
+            "time_in_force": tif,
             "order_class": "bracket",
             "take_profit": {"limit_price": str(round(float(intent.target_px), 2))},
             "stop_loss": {"stop_price": str(round(float(intent.stop_px), 2))},
@@ -126,9 +154,42 @@ class AlpacaPaperBroker:
             raw=row,
         )
 
-    def close_position(self, symbol: str) -> dict:
-        """Market-close an open paper position (EOD flatten)."""
-        row = self._request("DELETE", f"/v2/positions/{symbol.upper()}")
+    def submit_oco_exit(
+        self,
+        *,
+        symbol: str,
+        qty: Decimal,
+        stop_px: Decimal,
+        target_px: Decimal,
+        time_in_force: str = "gtc",
+    ) -> BrokerOrderResult:
+        """GTC OCO sell for an existing long (take-profit limit + stop)."""
+        body = {
+            "symbol": symbol.upper(),
+            "qty": str(int(qty)),
+            "side": "sell",
+            "type": "limit",
+            "time_in_force": time_in_force,
+            "limit_price": str(round(float(target_px), 2)),
+            "order_class": "oco",
+            "stop_loss": {"stop_price": str(round(float(stop_px), 2))},
+        }
+        row = self._request("POST", "/v2/orders", body)
+        assert isinstance(row, dict)
+        return BrokerOrderResult(
+            order_id=str(row.get("id") or ""),
+            symbol=str(row.get("symbol") or symbol),
+            status=str(row.get("status") or ""),
+            qty=Decimal(str(row.get("qty") or qty)),
+            raw=row,
+        )
+
+    def close_position(self, symbol: str, qty: Decimal | None = None) -> dict:
+        """Market-close an open paper position (full or partial qty)."""
+        path = f"/v2/positions/{symbol.upper()}"
+        if qty is not None:
+            path = f"{path}?qty={int(qty)}"
+        row = self._request("DELETE", path)
         return row if isinstance(row, dict) else {"result": row}
 
     def close_all_positions(self) -> list:
