@@ -215,8 +215,8 @@ class AlpacaPaperBroker:
             "side": "sell",
             "type": "limit",
             "time_in_force": time_in_force,
-            "limit_price": str(round(float(target_px), 2)),
             "order_class": "oco",
+            "take_profit": {"limit_price": str(round(float(target_px), 2))},
             "stop_loss": {"stop_price": str(round(float(stop_px), 2))},
         }
         row = self._request("POST", "/v2/orders", body)
