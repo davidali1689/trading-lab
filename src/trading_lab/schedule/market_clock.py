@@ -119,7 +119,9 @@ def should_run_premarket(ts: datetime | None = None) -> bool:
 
 
 def should_run_eod(ts: datetime | None = None) -> bool:
-    return phase_at(ts) == SessionPhase.EOD
+    """EOD flatten window: 16:00 through end of postmarket (retry if 16:05 missed)."""
+    phase = phase_at(ts)
+    return phase in {SessionPhase.EOD, SessionPhase.POSTMARKET}
 
 
 def should_run_postmarket(ts: datetime | None = None) -> bool:

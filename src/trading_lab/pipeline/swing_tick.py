@@ -209,8 +209,23 @@ def run_swing_paper_tick(
         base["skips"] = 1
         return base
 
-    risk, equity, use_notional = make_risk_gate(broker, notional_usd=notional_usd)
+    risk, equity, use_notional = make_risk_gate(
+        broker, journal_path=journal_path, notional_usd=notional_usd
+    )
     qty = qty_for_price(decision.trade_map.entry_trigger, use_notional)
+    if qty is None:
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=decision.agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=f"slice_cannot_buy_1_share price={decision.trade_map.entry_trigger}",
+        )
+        base["status"] = "RISK_BLOCKED"
+        base["skips"] = 1
+        return base
     intent = decision.to_trade_intent(qty)
     assert intent is not None
     submitted = submit_paper_intent(
@@ -222,5 +237,6 @@ def run_swing_paper_tick(
         bar_ts=bars[-1].ts,
         equity=equity,
         notional_usd=use_notional,
+        journal_path=journal_path,
     )
     return {**base, **submitted}

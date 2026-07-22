@@ -59,6 +59,8 @@ def test_flatten_closes_sniper_not_swing(tmp_path: Path, monkeypatch):
     journal.write_trade(_open_trade(agent="swing_momentum", symbol="AAL"))
 
     broker = MagicMock()
+    broker.get_open_positions.return_value = []
+    broker.cancel_open_orders.return_value = []
     broker.close_position.return_value = {"symbol": "ELVA", "status": "closed"}
 
     with patch("trading_lab.pipeline.eod_flatten.AlpacaPaperBroker", return_value=broker):

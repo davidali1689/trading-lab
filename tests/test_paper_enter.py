@@ -43,9 +43,11 @@ def _ctx(*, rvol: Decimal, above_vwap: bool, has_catalyst: bool = False) -> Sess
     )
 
 
-def test_paper_enters_without_catalyst_when_rvol_and_vwap_ok():
-    """Paper must be evaluable — catalyst is relaxed like backtest."""
-    d = evaluate_large_cap_sniper(_ctx(rvol=Decimal("2.0"), above_vwap=True), mode=RunMode.PAPER)
+def test_paper_enters_with_catalyst_when_rvol_and_vwap_ok():
+    """Paper requires Finnhub news catalyst (same gate as live)."""
+    d = evaluate_large_cap_sniper(
+        _ctx(rvol=Decimal("2.0"), above_vwap=True, has_catalyst=True), mode=RunMode.PAPER
+    )
     assert d.status == SniperStatus.ENTER
     assert d.trade_map is not None
 
@@ -58,10 +60,22 @@ def test_live_still_requires_catalyst():
 
 def test_paper_enters_at_paper_min_rvol():
     """Paper uses a slightly softer RVOL floor so setups appear in the journal."""
-    d = evaluate_large_cap_sniper(_ctx(rvol=Decimal("1.25"), above_vwap=True), mode=RunMode.PAPER)
+    d = evaluate_large_cap_sniper(
+        _ctx(rvol=Decimal("1.25"), above_vwap=True, has_catalyst=True), mode=RunMode.PAPER
+    )
     assert d.status == SniperStatus.ENTER
 
 
 def test_paper_still_blocks_weak_rvol():
-    d = evaluate_large_cap_sniper(_ctx(rvol=Decimal("0.8"), above_vwap=True), mode=RunMode.PAPER)
+    d = evaluate_large_cap_sniper(
+        _ctx(rvol=Decimal("0.8"), above_vwap=True, has_catalyst=True), mode=RunMode.PAPER
+    )
     assert d.status != SniperStatus.ENTER
+
+
+def test_paper_blocks_without_catalyst():
+    d = evaluate_large_cap_sniper(
+        _ctx(rvol=Decimal("2.0"), above_vwap=True, has_catalyst=False), mode=RunMode.PAPER
+    )
+    assert d.status != SniperStatus.ENTER
+    assert "catalyst" in (d.reason or "")

@@ -76,6 +76,9 @@ class AlpacaPaperBroker:
             cash=Decimal(str(row.get("cash") or "0")),
             buying_power=Decimal(str(row.get("buying_power") or "0")),
             paper=self.base_url.startswith(PAPER_BASE),
+            settled_cash=Decimal(
+                str(row.get("non_marginable_buying_power") or row.get("cash") or "0")
+            ),
         )
 
     def get_open_positions(self) -> list[BrokerPosition]:
@@ -152,6 +155,48 @@ class AlpacaPaperBroker:
             status=str(row.get("status") or ""),
             qty=Decimal(str(row.get("qty") or intent.qty)),
             raw=row,
+            filled_avg_price=(
+                Decimal(str(row["filled_avg_price"]))
+                if row.get("filled_avg_price") not in (None, "")
+                else None
+            ),
+        )
+
+    def get_order(self, order_id: str) -> dict:
+        row = self._request("GET", f"/v2/orders/{order_id}")
+        return row if isinstance(row, dict) else {}
+
+    def wait_for_fill(
+        self,
+        order_id: str,
+        *,
+        timeout_sec: float = 15.0,
+        poll_sec: float = 0.5,
+    ) -> BrokerOrderResult:
+        """Poll until parent order is filled/canceled/rejected or timeout."""
+        import time
+
+        deadline = time.monotonic() + timeout_sec
+        last: dict = {}
+        while time.monotonic() < deadline:
+            last = self.get_order(order_id)
+            status = str(last.get("status") or "").lower()
+            if status in {"filled", "partially_filled"}:
+                break
+            if status in {"canceled", "expired", "rejected", "replaced"}:
+                break
+            time.sleep(poll_sec)
+        return BrokerOrderResult(
+            order_id=str(last.get("id") or order_id),
+            symbol=str(last.get("symbol") or ""),
+            status=str(last.get("status") or "unknown"),
+            qty=Decimal(str(last.get("filled_qty") or last.get("qty") or "0")),
+            raw=last,
+            filled_avg_price=(
+                Decimal(str(last["filled_avg_price"]))
+                if last.get("filled_avg_price") not in (None, "")
+                else None
+            ),
         )
 
     def submit_oco_exit(
@@ -191,6 +236,30 @@ class AlpacaPaperBroker:
             path = f"{path}?qty={int(qty)}"
         row = self._request("DELETE", path)
         return row if isinstance(row, dict) else {"result": row}
+
+    def recent_sell_fill_price(self, symbol: str) -> Decimal | None:
+        """Best-effort exit price from most recent filled sell for symbol."""
+        path = (
+            f"/v2/orders?status=closed&side=sell&symbols={symbol.upper()}"
+            "&direction=desc&limit=10&nested=true"
+        )
+        try:
+            rows = self._request("GET", path)
+        except RuntimeError:
+            return None
+        if not isinstance(rows, list):
+            return None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("symbol") or "").upper() != symbol.upper():
+                continue
+            if str(row.get("status") or "").lower() != "filled":
+                continue
+            avg = row.get("filled_avg_price")
+            if avg not in (None, ""):
+                return Decimal(str(avg))
+        return None
 
     def close_all_positions(self) -> list:
         """Close all open paper positions."""

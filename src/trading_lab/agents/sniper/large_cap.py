@@ -26,7 +26,7 @@ class LargeCapSniperSpec(BaseModel):
     min_rvol_paper: Decimal = Decimal("1.25")
     require_catalyst: bool = True
     require_catalyst_in_backtest: bool = False  # news sparse historically
-    require_catalyst_in_paper: bool = False  # evaluate strategy in action on paper
+    require_catalyst_in_paper: bool = True  # Finnhub company-news on paper path
     require_price_above_vwap: bool = True
     require_aligned_with_spy_qqq: bool = True
     catalyst_types: list[str] = Field(

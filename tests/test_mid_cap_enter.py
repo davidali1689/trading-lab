@@ -37,7 +37,7 @@ def test_paper_mid_cap_enters_with_8pct_target():
         bar=bars[-1],
         bars=bars,
         market_cap_usd=Decimal("5000000000"),
-        has_catalyst=False,
+        has_catalyst=True,
         rvol=Decimal("2.0"),
         above_vwap=True,
         spy_aligned=True,

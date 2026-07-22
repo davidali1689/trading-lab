@@ -432,6 +432,9 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 # Still run prep at scheduled 18:00
                 pass
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
+        # Gap 8: retry sniper flatten if 16:05 EOD was missed
+        flatten = flatten_sniper_paper(JOURNAL_PATH) if has_alpaca_keys() else []
+        exits = reassess_open_exits(JOURNAL_PATH) if has_alpaca_keys() else []
         persist = persist_journal_to_s3(JOURNAL_PATH)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
@@ -443,6 +446,8 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             "focus": "dynamic candidates for next session — sniper gates at RTH",
             "no_entries_after_hours": True,
             "hydrate": hydrate,
+            "flatten_retry": flatten,
+            "exit_reassess": exits,
             "persist": persist,
             "miss_harvest": {
                 "ok": miss.get("ok"),
@@ -453,7 +458,8 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         results.append(next_day_notes)
         detail = (
             f"18:00 postmarket prep watchlist={wl.symbols} source={wl.source} "
-            f"({wl.detail}) miss_harvest={miss.get('ok')} — idle until 08:00"
+            f"({wl.detail}) flatten_retry={len(flatten)} miss_harvest={miss.get('ok')} "
+            f"— idle until 08:00"
         )
         logger.info(detail)
         return PhaseResult(

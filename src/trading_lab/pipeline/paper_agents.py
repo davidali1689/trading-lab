@@ -12,6 +12,7 @@ from trading_lab.agents.sniper.mid_cap import MID_CAP_SNIPER
 from trading_lab.agents.sniper.shared_execution import SniperStatus
 from trading_lab.agents.sniper.speculative import SPECULATIVE_SNIPER
 from trading_lab.broker.alpaca import AlpacaPaperBroker
+from trading_lab.catalysts.finnhub_news import has_finnhub_key, symbol_has_recent_news
 from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
@@ -30,6 +31,45 @@ from trading_lab.schedule import swing_power_hour
 from trading_lab.schemas.trades import RunMode, SkipReason
 
 logger = logging.getLogger("trading_lab.paper_agents")
+
+
+def _paper_has_catalyst(symbol: str) -> bool:
+    """Finnhub company-news in last 48h. No key → False (catalyst required on paper)."""
+    if not has_finnhub_key():
+        logger.warning("FINNHUB_API_KEY missing — sniper catalyst gate will fail closed")
+        return False
+    return symbol_has_recent_news(symbol)
+
+
+def _above_20dma(bars: list) -> bool | None:
+    if len(bars) < 20:
+        return None
+    closes = [b.close for b in bars[-20:]]
+    ma = sum(closes, Decimal("0")) / Decimal(20)
+    return bars[-1].close > ma
+
+
+def _index_alignment(md, end: datetime) -> tuple[bool | None, bool | None]:
+    """Gap 7: real SPY/QQQ vs 20-DMA (None if bars thin)."""
+    start = end - timedelta(days=40)
+    spy_ok: bool | None = None
+    qqq_ok: bool | None = None
+    try:
+        spy = md.get_bars(
+            BarRequest(symbol="SPY", timeframe="1Day", start=start, end=end)
+        )
+        spy_ok = _above_20dma(spy)
+    except Exception:  # noqa: BLE001
+        spy_ok = None
+    try:
+        qqq = md.get_bars(
+            BarRequest(symbol="QQQ", timeframe="1Day", start=start, end=end)
+        )
+        qqq_ok = _above_20dma(qqq)
+    except Exception:  # noqa: BLE001
+        qqq_ok = None
+    return spy_ok, qqq_ok
+
 
 # Liquid mega names without a cap API → large_cap route.
 LARGE_CAP_SYMBOLS = frozenset(
@@ -119,7 +159,9 @@ def run_sniper_paper_tick(
         }
 
     broker = broker or AlpacaPaperBroker()
-    risk, equity, use_notional = make_risk_gate(broker, notional_usd=notional_usd)
+    risk, equity, use_notional = make_risk_gate(
+        broker, journal_path=journal_path, notional_usd=notional_usd
+    )
 
     if broker.has_open_position(symbol):
         write_skip(
@@ -144,14 +186,16 @@ def run_sniper_paper_tick(
         }
 
     bar = bars[-1]
+    spy_aligned, qqq_aligned = _index_alignment(md, end)
+    has_catalyst = _paper_has_catalyst(symbol)
     ctx = SessionContext(
         symbol=symbol,
         bar=bar,
         bars=bars,
         market_cap_usd=market_cap_usd,
-        has_catalyst=False,
-        spy_aligned=True,
-        qqq_aligned=True,
+        has_catalyst=has_catalyst,
+        spy_aligned=spy_aligned,
+        qqq_aligned=qqq_aligned,
     )
     if agent_id == SPECULATIVE_SNIPER.agent_id:
         decision = evaluate_speculative_sniper(ctx, mode=RunMode.PAPER)
@@ -183,6 +227,26 @@ def run_sniper_paper_tick(
         }
 
     qty = qty_for_price(decision.trade_map.entry_trigger, use_notional)
+    if qty is None:
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=decision.agent_id,
+            symbol=symbol,
+            ts=bar.ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=f"slice_cannot_buy_1_share price={decision.trade_map.entry_trigger} notional={use_notional}",
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "RISK_BLOCKED",
+            "found_by_agent": decision.agent_id,
+            "detail": "qty_unaffordable",
+            "equity": str(equity),
+            "orders": 0,
+            "skips": 1,
+        }
     intent = decision.to_trade_intent(qty)
     assert intent is not None
     return submit_paper_intent(
@@ -194,6 +258,7 @@ def run_sniper_paper_tick(
         bar_ts=bar.ts,
         equity=equity,
         notional_usd=use_notional,
+        journal_path=journal_path,
     )
 
 

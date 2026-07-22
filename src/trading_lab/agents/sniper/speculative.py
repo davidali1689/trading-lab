@@ -28,7 +28,7 @@ class SpeculativeSniperSpec(BaseModel):
     max_rsi: Decimal = Decimal("80")
     require_catalyst: bool = True
     require_catalyst_in_backtest: bool = False
-    require_catalyst_in_paper: bool = False
+    require_catalyst_in_paper: bool = True
     catalyst_types: list[str] = Field(
         default_factory=lambda: [
             "fda_approval",

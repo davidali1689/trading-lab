@@ -30,14 +30,14 @@ def _bars(*, volume_last: Decimal = Decimal("1000")) -> list[Bar]:
     return out
 
 
-def test_paper_speculative_enters_without_catalyst_float_rsi():
+def test_paper_speculative_enters_with_catalyst_float_rsi():
     bars = _bars()
     ctx = SessionContext(
         symbol="ELVA",
         bar=bars[-1],
         bars=bars,
         market_cap_usd=Decimal("500000000"),
-        has_catalyst=False,
+        has_catalyst=True,
         rvol=Decimal("5.0"),
         float_shares=None,
         rsi=None,

@@ -15,6 +15,8 @@ class BrokerAccount(BaseModel):
     cash: Decimal
     buying_power: Decimal
     paper: bool = True
+    # Settled / non-margin cash for T+1 swing discipline (Alpaca non_marginable_buying_power)
+    settled_cash: Decimal | None = None
 
 
 class BrokerPosition(BaseModel):
@@ -33,6 +35,7 @@ class BrokerOrderResult(BaseModel):
     status: str
     qty: Decimal
     raw: dict = Field(default_factory=dict)
+    filled_avg_price: Decimal | None = None
 
 
 class BrokerPort(Protocol):
@@ -43,6 +46,8 @@ class BrokerPort(Protocol):
     def has_open_position(self, symbol: str) -> bool: ...
 
     def submit_bracket_order(self, intent: TradeIntent) -> BrokerOrderResult: ...
+
+    def get_order(self, order_id: str) -> dict: ...
 
     def list_open_orders(self, symbol: str | None = None) -> list[dict]: ...
 

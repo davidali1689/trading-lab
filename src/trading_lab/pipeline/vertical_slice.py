@@ -119,6 +119,22 @@ def run_vertical_slice(
         trade_qty = (
             qty if qty is not None else qty_for_price(decision.trade_map.entry_trigger, notional)
         )
+        if trade_qty is None:
+            skip = SkipEvent(
+                event_id=uuid4(),
+                run_id=run_id,
+                found_by_agent=agent,
+                symbol=symbol,
+                ts=bar.ts,
+                mode=mode,
+                skip_reason=SkipReason.RISK_BLOCKED,
+                detail="slice_cannot_buy_1_share",
+                bar_ts=bar.ts,
+            )
+            skips.append(skip)
+            journal.write_skip(skip)
+            i += 1
+            continue
         intent = decision.to_trade_intent(trade_qty)
         assert intent is not None
         gate = risk.check(intent, bar.ts)

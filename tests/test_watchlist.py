@@ -248,6 +248,9 @@ def test_postmarket_builds_watchlist(monkeypatch: pytest.MonkeyPatch) -> None:
         patch("api.server.build_daily_watchlist", return_value=doc),
         patch("api.server.save_watchlist", return_value={"ok": True}),
         patch("api.server.persist_journal_to_s3", return_value={"ok": True}),
+        patch("api.server.hydrate_journal_from_s3", return_value={"ok": True}),
+        patch("api.server.has_alpaca_keys", return_value=False),
+        patch("api.server.run_and_persist_miss_harvest", return_value={"ok": True, "report": {}}),
         patch("api.server._holiday_noop", return_value=None),
     ):
         resp = client.post("/events", json={"phase": "postmarket", "force": True})

@@ -1,33 +1,51 @@
 """Daily exit reassessment for open paper positions.
 
-Day brackets expire overnight; swing holds must never sit naked.
-Premarket + tick call `reassess_open_exits` to flatten, scale, or re-arm GTC OCO.
+Enforces: never sit naked; agent-aware scale ladders; orphan flatten;
+swing 8-EMA + max-hold; snipers never overnight via GTC rearm; trail after scale.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import sqlite3
+from datetime import datetime, timezone
 from decimal import ROUND_DOWN, Decimal
 from enum import StrEnum
-from pathlib import Path
 from typing import Any
 
+from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED, scale_out_price
 from trading_lab.agents.swing.shared_execution import SWING_SHARED
 from trading_lab.broker.alpaca import AlpacaPaperBroker
 from trading_lab.config.secrets import has_alpaca_keys
+from trading_lab.eval.swing import _ema
+from trading_lab.execution.risk_persist import load_risk_gate, save_risk_gate
+from trading_lab.journal.open_trades import (
+    close_journal_trade,
+    load_open_plans,
+    mark_journal_scaled,
+    update_last_mark,
+    update_trail_stop,
+)
+from trading_lab.market_data.factory import resolve_market_data
+from trading_lab.market_data.types import BarRequest
+from trading_lab.schemas.trades import ExitReason
 
 logger = logging.getLogger("trading_lab.exit_reassess")
+
+SNIPER_AGENTS = frozenset({"large_cap_sniper", "mid_cap_sniper", "speculative_sniper"})
 
 
 class ExitAction(StrEnum):
     FLATTEN_TARGET = "flatten_target"
     FLATTEN_STOP = "flatten_stop"
+    FLATTEN_ORPHAN = "flatten_orphan"
+    FLATTEN_EMA = "flatten_ema"
+    FLATTEN_TIME = "flatten_time"
+    FLATTEN_SNIPER_EOD = "flatten_sniper_eod"
     SCALE_AND_TRAIL = "scale_and_trail"
+    TRAIL_UPDATE = "trail_update"
     REARM_OCO = "rearm_oco"
     NOOP_HAS_EXITS = "noop_has_exits"
-    SKIP_NO_PLAN = "skip_no_plan"
+    SKIP_NO_PLAN = "skip_no_plan"  # legacy alias → orphan flatten
 
 
 def assess_exit_action(
@@ -36,6 +54,7 @@ def assess_exit_action(
     mark: Decimal,
     stop: Decimal,
     target: Decimal,
+    scale_px: Decimal | None = None,
     scale_gain_pct: Decimal = SWING_SHARED.scale_out_gain_pct,
 ) -> ExitAction:
     """Pure ladder: stop → rearm → scale → harvest past final target."""
@@ -43,44 +62,12 @@ def assess_exit_action(
         return ExitAction.FLATTEN_STOP
     if mark >= target:
         return ExitAction.FLATTEN_TARGET
-    scale_px = entry * (Decimal("1") + scale_gain_pct / Decimal("100"))
-    if mark >= scale_px:
+    scale = scale_px if scale_px is not None else entry * (
+        Decimal("1") + scale_gain_pct / Decimal("100")
+    )
+    if mark >= scale:
         return ExitAction.SCALE_AND_TRAIL
     return ExitAction.REARM_OCO
-
-
-def _load_open_plans(journal_path: str) -> dict[str, dict[str, Any]]:
-    """Latest open journal row per symbol → entry/stop/target/qty/meta."""
-    path = Path(journal_path)
-    if not path.exists():
-        return {}
-    plans: dict[str, dict[str, Any]] = {}
-    with sqlite3.connect(path) as conn:
-        for row in conn.execute(
-            "SELECT symbol, found_by_agent, entry_px, qty, payload FROM trades ORDER BY entry_ts ASC"
-        ):
-            symbol, agent, entry_px, qty, payload_raw = row
-            try:
-                payload = json.loads(payload_raw or "{}")
-            except json.JSONDecodeError:
-                payload = {}
-            meta = payload.get("meta") or {}
-            if meta.get("open") is not True:
-                continue
-            sym = str(symbol).upper()
-            stop_raw = payload.get("stop_px")
-            target_raw = payload.get("target_px")
-            plans[sym] = {
-                "symbol": sym,
-                "found_by_agent": agent,
-                "entry_px": Decimal(str(entry_px)),
-                "stop_px": Decimal(str(stop_raw or "0")),
-                "target_px": Decimal(str(target_raw or "0")),
-                "qty": Decimal(str(qty)),
-                "meta": meta,
-                "payload": payload,
-            }
-    return plans
 
 
 def _half_qty(qty: Decimal) -> Decimal:
@@ -101,62 +88,193 @@ def _has_sell_exit(orders: list[dict[str, Any]], symbol: str) -> bool:
     return False
 
 
-def _mark_journal_closed(journal_path: str, symbol: str) -> None:
-    path = Path(journal_path)
-    if not path.exists():
-        return
-    sym = symbol.upper()
-    with sqlite3.connect(path) as conn:
-        rows = list(
-            conn.execute("SELECT trade_id, payload FROM trades WHERE upper(symbol)=?", (sym,))
-        )
-        for trade_id, payload_raw in rows:
-            try:
-                payload = json.loads(payload_raw or "{}")
-            except json.JSONDecodeError:
-                continue
-            meta = payload.get("meta") or {}
-            if meta.get("open") is not True:
-                continue
-            meta["open"] = False
-            meta["closed_by"] = "exit_reassess"
-            payload["meta"] = meta
-            conn.execute(
-                "UPDATE trades SET payload=? WHERE trade_id=?",
-                (json.dumps(payload), trade_id),
-            )
+def _is_sniper(agent: str) -> bool:
+    return agent in SNIPER_AGENTS
 
 
-def _mark_journal_scaled(journal_path: str, symbol: str, remain_qty: Decimal) -> None:
-    path = Path(journal_path)
-    if not path.exists():
-        return
-    sym = symbol.upper()
-    with sqlite3.connect(path) as conn:
-        rows = list(
-            conn.execute("SELECT trade_id, payload FROM trades WHERE upper(symbol)=?", (sym,))
-        )
-        for trade_id, payload_raw in rows:
-            try:
-                payload = json.loads(payload_raw or "{}")
-            except json.JSONDecodeError:
-                continue
-            meta = payload.get("meta") or {}
-            if meta.get("open") is not True:
-                continue
-            meta["scaled_out"] = True
-            meta["remain_qty"] = str(remain_qty)
-            payload["meta"] = meta
-            conn.execute(
-                "UPDATE trades SET payload=? WHERE trade_id=?",
-                (json.dumps(payload), trade_id),
+def _sessions_held(entry_ts: str | None, now: datetime) -> int:
+    if not entry_ts:
+        return 0
+    try:
+        start = datetime.fromisoformat(entry_ts)
+    except ValueError:
+        return 0
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    held = now.astimezone(timezone.utc).date() - start.astimezone(timezone.utc).date()
+    return max(0, held.days)
+
+
+def _below_8ema(symbol: str) -> bool | None:
+    """True if latest daily close is below 8-EMA."""
+    try:
+        md = resolve_market_data()
+        end = datetime.now(timezone.utc)
+        start = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        # ~40 calendar days of dailies
+        from datetime import timedelta
+
+        bars = md.get_bars(
+            BarRequest(
+                symbol=symbol,
+                timeframe="1Day",
+                start=start - timedelta(days=40),
+                end=end,
             )
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    if len(bars) < 8:
+        return None
+    closes = [b.close for b in bars]
+    ema = _ema(closes, 8)
+    if ema is None:
+        return None
+    return bars[-1].close < ema
+
+
+def _trail_stop(
+    entry: Decimal,
+    mark: Decimal,
+    prev_trail: Decimal | None,
+    *,
+    recent_lows: list[Decimal] | None = None,
+    atr: Decimal | None = None,
+) -> Decimal:
+    """Ratchet stop: max(BE, swing-low, mark−1.5·ATR, prior); always < mark."""
+    candidates: list[Decimal] = [entry]
+    if recent_lows:
+        candidates.append(min(recent_lows))
+    if atr is not None and atr > 0:
+        candidates.append((mark - atr * Decimal("1.5")).quantize(Decimal("0.01")))
+    else:
+        candidates.append((mark * Decimal("0.98")).quantize(Decimal("0.01")))
+    candidate = max(candidates)
+    if prev_trail is not None:
+        candidate = max(candidate, prev_trail)
+    if candidate >= mark:
+        candidate = max(entry, (mark * Decimal("0.995")).quantize(Decimal("0.01")))
+        if candidate >= mark:
+            candidate = (mark - Decimal("0.01")).quantize(Decimal("0.01"))
+    return candidate.quantize(Decimal("0.01"))
+
+
+def _recent_bar_stats(symbol: str) -> tuple[list[Decimal], Decimal | None]:
+    """Return (recent lows, ATR proxy) from 1Min bars when available."""
+    try:
+        md = resolve_market_data()
+        end = datetime.now(timezone.utc)
+        from datetime import timedelta
+
+        bars = md.get_bars(
+            BarRequest(
+                symbol=symbol,
+                timeframe="1Min",
+                start=end - timedelta(hours=2),
+                end=end,
+            )
+        )
+    except Exception:  # noqa: BLE001
+        return [], None
+    if len(bars) < 5:
+        return [], None
+    window = bars[-20:] if len(bars) >= 20 else bars
+    lows = [b.low for b in window]
+    ranges = [b.high - b.low for b in window if b.high >= b.low]
+    atr = None
+    if ranges:
+        atr = (sum(ranges, Decimal("0")) / Decimal(len(ranges))).quantize(Decimal("0.01"))
+    return lows[-5:], atr
+
+
+def _resolve_exit_px(
+    *,
+    broker: AlpacaPaperBroker,
+    symbol: str,
+    plan: dict[str, Any],
+    entry: Decimal,
+) -> Decimal:
+    """Prefer broker sell fill → last_mark → stop/target heuristics → entry."""
+    fill = None
+    if hasattr(broker, "recent_sell_fill_price"):
+        try:
+            fill = broker.recent_sell_fill_price(symbol)
+        except Exception:  # noqa: BLE001
+            fill = None
+    if fill is not None and fill > 0:
+        return fill
+    meta = plan.get("meta") or {}
+    last = meta.get("last_mark")
+    if last not in (None, ""):
+        try:
+            px = Decimal(str(last))
+            if px > 0:
+                return px
+        except Exception:  # noqa: BLE001
+            pass
+    return entry
+
+
+def _scale_point_for_plan(plan: dict[str, Any], entry: Decimal, target: Decimal) -> Decimal:
+    if plan.get("scale_out_point"):
+        return Decimal(str(plan["scale_out_point"]))
+    agent = str(plan.get("found_by_agent") or "")
+    if _is_sniper(agent):
+        return scale_out_price(entry, target)
+    return entry * (Decimal("1") + SWING_SHARED.scale_out_gain_pct / Decimal("100"))
+
+
+def reconcile_flat_journal(
+    journal_path: str,
+    *,
+    broker: AlpacaPaperBroker,
+) -> list[dict[str, Any]]:
+    """Close journal opens whose broker position is gone; book P&L + risk."""
+    plans = load_open_plans(journal_path)
+    open_syms = {p.symbol.upper() for p in broker.get_open_positions() if p.qty != 0}
+    out: list[dict[str, Any]] = []
+    gate = load_risk_gate(journal_path)
+    now = datetime.now(timezone.utc)
+    for sym, plan in plans.items():
+        if sym in open_syms:
+            continue
+        entry = plan["entry_px"]
+        exit_px = _resolve_exit_px(broker=broker, symbol=sym, plan=plan, entry=entry)
+        reason = ExitReason.SIGNAL
+        stop_hit = exit_px <= plan["stop_px"] if plan["stop_px"] > 0 else False
+        if stop_hit:
+            reason = ExitReason.STOP
+        elif plan["target_px"] > 0 and exit_px >= plan["target_px"]:
+            reason = ExitReason.TARGET
+        pnl = (exit_px - entry) * plan["qty"]
+        close_journal_trade(
+            journal_path, sym, exit_px=exit_px, exit_reason=reason, closed_by="reconcile"
+        )
+        gate.on_close(
+            pnl,
+            stop_hit=stop_hit,
+            now=now,
+            cool_minutes=int(SNIPER_SHARED.cooling_off_after_stop.total_seconds() // 60),
+        )
+        out.append(
+            {
+                "ok": True,
+                "symbol": sym,
+                "action": "reconcile_closed",
+                "exit_px": str(exit_px),
+                "pnl_usd": str(pnl),
+                "exit_reason": reason.value,
+            }
+        )
+    save_risk_gate(journal_path, gate)
+    return out
 
 
 def reassess_open_exits(
     journal_path: str,
     *,
     broker: AlpacaPaperBroker | None = None,
+    outside_rth: bool | None = None,
 ) -> list[dict[str, Any]]:
     """Assess every open broker position and enforce an exit plan."""
     if broker is None:
@@ -164,13 +282,24 @@ def reassess_open_exits(
             return [{"ok": False, "detail": "no_alpaca_keys"}]
         broker = AlpacaPaperBroker()
 
-    plans = _load_open_plans(journal_path)
+    out: list[dict[str, Any]] = []
+    out.extend(reconcile_flat_journal(journal_path, broker=broker))
+
+    plans = load_open_plans(journal_path)
     positions = broker.get_open_positions()
     if not positions:
-        return [{"ok": True, "detail": "no_open_positions"}]
+        if not out:
+            return [{"ok": True, "detail": "no_open_positions"}]
+        return out
+
+    from trading_lab.schedule.market_clock import sniper_ticks_allowed
+
+    if outside_rth is None:
+        outside_rth = not sniper_ticks_allowed()
 
     open_orders = broker.list_open_orders()
-    out: list[dict[str, Any]] = []
+    gate = load_risk_gate(journal_path)
+    now = datetime.now(timezone.utc)
 
     for pos in positions:
         sym = pos.symbol.upper()
@@ -178,32 +307,166 @@ def reassess_open_exits(
             continue
         plan = plans.get(sym)
         mark = pos.current_price if pos.current_price > 0 else pos.avg_entry_price
-        entry = pos.avg_entry_price if pos.avg_entry_price > 0 else (
-            plan["entry_px"] if plan else Decimal("0")
+        if mark > 0 and plan is not None:
+            update_last_mark(journal_path, sym, mark)
+        entry = (
+            pos.avg_entry_price
+            if pos.avg_entry_price > 0
+            else (plan["entry_px"] if plan else Decimal("0"))
         )
+
+        # Gap 4: orphan → flatten
         if plan is None or entry <= 0 or plan["stop_px"] <= 0 or plan["target_px"] <= 0:
-            out.append(
-                {
-                    "ok": False,
-                    "symbol": sym,
-                    "action": ExitAction.SKIP_NO_PLAN.value,
-                    "detail": "open_on_broker_without_journal_exit_plan",
-                }
-            )
+            try:
+                broker.cancel_open_orders(sym)
+                broker.close_position(sym)
+                close_journal_trade(
+                    journal_path,
+                    sym,
+                    exit_px=mark if mark > 0 else entry,
+                    exit_reason=ExitReason.RISK_KILL,
+                    closed_by="orphan_flatten",
+                )
+                out.append(
+                    {
+                        "ok": True,
+                        "symbol": sym,
+                        "action": ExitAction.FLATTEN_ORPHAN.value,
+                        "detail": "open_on_broker_without_journal_exit_plan",
+                        "mark": str(mark),
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001
+                out.append(
+                    {
+                        "ok": False,
+                        "symbol": sym,
+                        "action": ExitAction.FLATTEN_ORPHAN.value,
+                        "detail": str(exc),
+                    }
+                )
             continue
 
         stop = plan["stop_px"]
         target = plan["target_px"]
-        action = assess_exit_action(entry=entry, mark=mark, stop=stop, target=target)
+        agent = str(plan.get("found_by_agent") or "")
+        meta = plan.get("meta") or {}
+        scale_px = _scale_point_for_plan(plan, entry, target)
         has_exits = _has_sell_exit(open_orders, sym)
-        scaled = bool((plan.get("meta") or {}).get("scaled_out"))
+        scaled = bool(meta.get("scaled_out"))
+        hold = plan.get("hold_plan") or {}
+        max_sessions = int(hold.get("max_hold_sessions") or 0)
+
+        # Gap 5: max hold / 8-EMA (swing)
+        if not _is_sniper(agent):
+            held = _sessions_held(plan.get("entry_ts"), now)
+            if max_sessions > 0 and held >= max_sessions:
+                try:
+                    if has_exits:
+                        broker.cancel_open_orders(sym)
+                    broker.close_position(sym)
+                    pnl = (mark - entry) * pos.qty
+                    close_journal_trade(
+                        journal_path, sym, exit_px=mark, exit_reason=ExitReason.TIME
+                    )
+                    gate.on_close(pnl, stop_hit=False, now=now)
+                    out.append(
+                        {
+                            "ok": True,
+                            "symbol": sym,
+                            "action": ExitAction.FLATTEN_TIME.value,
+                            "sessions_held": held,
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    out.append(
+                        {"ok": False, "symbol": sym, "action": "flatten_time", "detail": str(exc)}
+                    )
+                continue
+            if SWING_SHARED.exit_on_close_below_8ema:
+                below = _below_8ema(sym)
+                if below is True:
+                    try:
+                        if has_exits:
+                            broker.cancel_open_orders(sym)
+                        broker.close_position(sym)
+                        pnl = (mark - entry) * pos.qty
+                        close_journal_trade(
+                            journal_path, sym, exit_px=mark, exit_reason=ExitReason.EMA_BREAK
+                        )
+                        gate.on_close(pnl, stop_hit=False, now=now)
+                        out.append(
+                            {
+                                "ok": True,
+                                "symbol": sym,
+                                "action": ExitAction.FLATTEN_EMA.value,
+                                "mark": str(mark),
+                            }
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        out.append(
+                            {
+                                "ok": False,
+                                "symbol": sym,
+                                "action": "flatten_ema",
+                                "detail": str(exc),
+                            }
+                        )
+                    continue
+
+        # Gap 8: sniper outside RTH → flatten, never GTC rearm
+        if _is_sniper(agent) and outside_rth:
+            try:
+                if has_exits:
+                    broker.cancel_open_orders(sym)
+                broker.close_position(sym)
+                pnl = (mark - entry) * pos.qty
+                close_journal_trade(journal_path, sym, exit_px=mark, exit_reason=ExitReason.EOD)
+                gate.on_close(pnl, stop_hit=False, now=now)
+                out.append(
+                    {
+                        "ok": True,
+                        "symbol": sym,
+                        "action": ExitAction.FLATTEN_SNIPER_EOD.value,
+                        "mark": str(mark),
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001
+                out.append(
+                    {
+                        "ok": False,
+                        "symbol": sym,
+                        "action": "flatten_sniper_eod",
+                        "detail": str(exc),
+                    }
+                )
+            continue
+
+        action = assess_exit_action(
+            entry=entry, mark=mark, stop=stop, target=target, scale_px=scale_px
+        )
+        tif = "day" if _is_sniper(agent) else "gtc"
 
         try:
             if action in {ExitAction.FLATTEN_TARGET, ExitAction.FLATTEN_STOP}:
                 if has_exits:
                     broker.cancel_open_orders(sym)
                 broker.close_position(sym)
-                _mark_journal_closed(journal_path, sym)
+                pnl = (mark - entry) * pos.qty
+                reason = (
+                    ExitReason.TARGET
+                    if action == ExitAction.FLATTEN_TARGET
+                    else ExitReason.STOP
+                )
+                close_journal_trade(journal_path, sym, exit_px=mark, exit_reason=reason)
+                gate.on_close(
+                    pnl,
+                    stop_hit=(action == ExitAction.FLATTEN_STOP),
+                    now=now,
+                    cool_minutes=int(
+                        SNIPER_SHARED.cooling_off_after_stop.total_seconds() // 60
+                    ),
+                )
                 out.append(
                     {
                         "ok": True,
@@ -218,6 +481,10 @@ def reassess_open_exits(
 
             if action == ExitAction.SCALE_AND_TRAIL:
                 remain = pos.qty
+                prev_trail = (
+                    Decimal(str(meta["trail_stop"])) if meta.get("trail_stop") else None
+                )
+                lows, atr = _recent_bar_stats(sym)
                 if not scaled and pos.qty >= 2:
                     sell_qty = _half_qty(pos.qty)
                     broker.cancel_open_orders(sym)
@@ -225,25 +492,37 @@ def reassess_open_exits(
                     remain = pos.qty - sell_qty
                     if remain < 1:
                         remain = Decimal("1")
-                    _mark_journal_scaled(journal_path, sym, remain)
+                    trail = _trail_stop(entry, mark, prev_trail, recent_lows=lows, atr=atr)
+                    mark_journal_scaled(journal_path, sym, remain, trail_stop=trail)
                     has_exits = False
-                be_stop = entry  # move stop to breakeven on remainder
+                    scaled = True
+                    prev_trail = trail
+                trail = _trail_stop(entry, mark, prev_trail, recent_lows=lows, atr=atr)
+                # Gap 10: if already scaled and trail moved up, replace OCO
+                if scaled and has_exits and prev_trail is not None and trail > prev_trail:
+                    broker.cancel_open_orders(sym)
+                    has_exits = False
+                    update_trail_stop(journal_path, sym, trail)
+                    action_out = ExitAction.TRAIL_UPDATE
+                else:
+                    action_out = ExitAction.SCALE_AND_TRAIL
+                    update_trail_stop(journal_path, sym, trail)
                 if not has_exits:
                     broker.submit_oco_exit(
                         symbol=sym,
-                        qty=remain if scaled else remain,
-                        stop_px=be_stop,
+                        qty=remain,
+                        stop_px=trail,
                         target_px=target,
-                        time_in_force="gtc",
+                        time_in_force=tif,
                     )
                 out.append(
                     {
                         "ok": True,
                         "symbol": sym,
-                        "action": action.value,
+                        "action": action_out.value,
                         "mark": str(mark),
                         "remain_qty": str(remain),
-                        "stop": str(be_stop),
+                        "stop": str(trail),
                         "target": str(target),
                         "scaled": True,
                     }
@@ -266,7 +545,7 @@ def reassess_open_exits(
                 qty=pos.qty,
                 stop_px=stop,
                 target_px=target,
-                time_in_force="gtc",
+                time_in_force=tif,
             )
             out.append(
                 {
@@ -277,10 +556,12 @@ def reassess_open_exits(
                     "stop": str(stop),
                     "target": str(target),
                     "qty": str(pos.qty),
+                    "tif": tif,
                 }
             )
-        except Exception as exc:  # noqa: BLE001 — continue other symbols
+        except Exception as exc:  # noqa: BLE001
             logger.exception("exit reassess failed for %s", sym)
             out.append({"ok": False, "symbol": sym, "action": action.value, "detail": str(exc)})
 
+    save_risk_gate(journal_path, gate)
     return out
