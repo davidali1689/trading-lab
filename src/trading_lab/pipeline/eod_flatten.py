@@ -21,9 +21,7 @@ def flatten_sniper_paper(journal_path: str) -> list[dict[str, Any]]:
         return [{"ok": False, "detail": "no_alpaca_keys"}]
 
     plans = load_open_plans(journal_path)
-    symbols = {
-        sym for sym, plan in plans.items() if plan.get("found_by_agent") in SNIPER_AGENTS
-    }
+    symbols = {sym for sym, plan in plans.items() if plan.get("found_by_agent") in SNIPER_AGENTS}
 
     if not symbols:
         return [{"ok": True, "detail": "no_open_sniper_positions"}]

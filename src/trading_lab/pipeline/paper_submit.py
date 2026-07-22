@@ -143,8 +143,7 @@ def submit_paper_intent(
 
     # Gap 6: swing settled-funds preference
     if (
-        intent.hold_plan.horizon == StrategyHorizon.SWING
-        and intent.hold_plan  # noqa: SIM201
+        intent.hold_plan.horizon == StrategyHorizon.SWING and intent.hold_plan  # noqa: SIM201
     ):
         acct = broker.get_account()
         settled = acct.settled_cash if acct.settled_cash is not None else acct.cash

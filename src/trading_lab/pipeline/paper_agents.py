@@ -55,16 +55,12 @@ def _index_alignment(md, end: datetime) -> tuple[bool | None, bool | None]:
     spy_ok: bool | None = None
     qqq_ok: bool | None = None
     try:
-        spy = md.get_bars(
-            BarRequest(symbol="SPY", timeframe="1Day", start=start, end=end)
-        )
+        spy = md.get_bars(BarRequest(symbol="SPY", timeframe="1Day", start=start, end=end))
         spy_ok = _above_20dma(spy)
     except Exception:  # noqa: BLE001
         spy_ok = None
     try:
-        qqq = md.get_bars(
-            BarRequest(symbol="QQQ", timeframe="1Day", start=start, end=end)
-        )
+        qqq = md.get_bars(BarRequest(symbol="QQQ", timeframe="1Day", start=start, end=end))
         qqq_ok = _above_20dma(qqq)
     except Exception:  # noqa: BLE001
         qqq_ok = None

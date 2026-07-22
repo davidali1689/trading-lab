@@ -62,8 +62,10 @@ def assess_exit_action(
         return ExitAction.FLATTEN_STOP
     if mark >= target:
         return ExitAction.FLATTEN_TARGET
-    scale = scale_px if scale_px is not None else entry * (
-        Decimal("1") + scale_gain_pct / Decimal("100")
+    scale = (
+        scale_px
+        if scale_px is not None
+        else entry * (Decimal("1") + scale_gain_pct / Decimal("100"))
     )
     if mark >= scale:
         return ExitAction.SCALE_AND_TRAIL
@@ -454,18 +456,14 @@ def reassess_open_exits(
                 broker.close_position(sym)
                 pnl = (mark - entry) * pos.qty
                 reason = (
-                    ExitReason.TARGET
-                    if action == ExitAction.FLATTEN_TARGET
-                    else ExitReason.STOP
+                    ExitReason.TARGET if action == ExitAction.FLATTEN_TARGET else ExitReason.STOP
                 )
                 close_journal_trade(journal_path, sym, exit_px=mark, exit_reason=reason)
                 gate.on_close(
                     pnl,
                     stop_hit=(action == ExitAction.FLATTEN_STOP),
                     now=now,
-                    cool_minutes=int(
-                        SNIPER_SHARED.cooling_off_after_stop.total_seconds() // 60
-                    ),
+                    cool_minutes=int(SNIPER_SHARED.cooling_off_after_stop.total_seconds() // 60),
                 )
                 out.append(
                     {
@@ -481,9 +479,7 @@ def reassess_open_exits(
 
             if action == ExitAction.SCALE_AND_TRAIL:
                 remain = pos.qty
-                prev_trail = (
-                    Decimal(str(meta["trail_stop"])) if meta.get("trail_stop") else None
-                )
+                prev_trail = Decimal(str(meta["trail_stop"])) if meta.get("trail_stop") else None
                 lows, atr = _recent_bar_stats(sym)
                 if not scaled and pos.qty >= 2:
                     sell_qty = _half_qty(pos.qty)
