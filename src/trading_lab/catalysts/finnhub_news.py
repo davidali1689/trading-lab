@@ -43,7 +43,12 @@ def symbol_has_recent_news(
         with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
             raw = resp.read().decode()
             rows = json.loads(raw) if raw else []
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+    except (
+        urllib.error.URLError,
+        urllib.error.HTTPError,
+        TimeoutError,
+        json.JSONDecodeError,
+    ) as exc:
         logger.warning("finnhub news failed for %s: %s", symbol, exc)
         return False
     if not isinstance(rows, list):

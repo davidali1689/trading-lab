@@ -235,7 +235,10 @@ def run_sniper_paper_tick(
             symbol=symbol,
             ts=bar.ts,
             skip_reason=SkipReason.RISK_BLOCKED,
-            detail=f"slice_cannot_buy_1_share price={decision.trade_map.entry_trigger} notional={use_notional}",
+            detail=(
+                f"slice_cannot_buy_1_share price={decision.trade_map.entry_trigger} "
+                f"notional={use_notional}"
+            ),
         )
         return {
             "symbol": symbol,
