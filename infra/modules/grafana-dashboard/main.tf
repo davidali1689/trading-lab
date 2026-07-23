@@ -42,12 +42,12 @@ variable "enable" {
 }
 
 locals {
-  base            = trimsuffix(var.function_url, "/")
-  feed_host       = trimprefix(local.base, "https://")
-  trades_uid      = "${var.app_name}-trades"
-  skips_uid       = "${var.app_name}-skips"
-  watchlist_uid   = "${var.app_name}-watchlist"
-  postmortem_uid  = "${var.app_name}-postmortem"
+  base           = trimsuffix(var.function_url, "/")
+  feed_host      = trimprefix(local.base, "https://")
+  trades_uid     = "${var.app_name}-trades"
+  skips_uid      = "${var.app_name}-skips"
+  watchlist_uid  = "${var.app_name}-watchlist"
+  postmortem_uid = "${var.app_name}-postmortem"
   infinity_json = {
     auth_method  = "apiKey"
     apiKeyKey    = "X-Grafana-Token"
