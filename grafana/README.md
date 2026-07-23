@@ -8,8 +8,8 @@ Agent Factory / Mission Control is unrelated.
 | Layer | Owner | Detail |
 |-------|--------|--------|
 | Cloud org, folder `Apps/trading-lab`, shared `cloudwatch` | aws-foundation | UID `apps-trading-lab` |
-| Infinity `trading-lab-trades` / `trading-lab-skips` / `trading-lab-watchlist` + dashboard | this repo | `infra/modules/grafana-dashboard` |
-| CSV feed + EMF | Lambda | `/grafana/*.csv`, namespace `TradingLab` |
+| Infinity `trading-lab-trades` / `-skips` / `-watchlist` / `-postmortem` + dashboard | this repo | `infra/modules/grafana-dashboard` |
+| CSV/JSON feed + EMF | Lambda | `/grafana/*`, namespace `TradingLab` |
 
 ## One-time (platform)
 
@@ -27,7 +27,7 @@ Follow [`aws-foundation/modules/grafana-cloud/README.md`](../../aws-foundation/m
 "GRAFANA_FEED_TOKEN": "long-random-string"
 ```
 
-2. Deploy apply with Grafana enabled (defaults on; CI loads creds from Secrets Manager):
+2. Deploy apply with Grafana enabled on **main** only (`name_prefix = trading-lab`). Feature stacks skip Grafana so they cannot overwrite the shared dashboard UID.
 
 ```hcl
 enable_grafana = true
@@ -37,7 +37,9 @@ enable_grafana = true
 
 GHA loads `GRAFANA_CLOUD_URL` + `GRAFANA_SERVICE_ACCOUNT_TOKEN` from Secrets Manager
 `platform-grafana-cloud`, and `GRAFANA_FEED_TOKEN` from `trading-lab-vendor-keys`.
-No GitHub Grafana secrets required. `enable_grafana` defaults to `true`.
+No GitHub Grafana secrets required. `enable_grafana` defaults to `true` on main.
+
+Push path filters include `grafana/**` so dashboard-only changes trigger Deploy.
 
 Local override still works:
 
@@ -48,31 +50,31 @@ $env:TF_VAR_grafana_auth = "glsa_..."
 
 3. Open folder **Apps / trading-lab** → dashboard **Trading Lab - Agent P&L**.
    - **Daily watchlist** panel uses Infinity JSON (`/grafana/watchlist.json`, `root_selector: rows`).
-   - Trade/Skip stats are **latest journal CSV snapshots** (all agents), not dashboard time-range filters.
+   - Trade stats use **latest journal CSV** (`pnl_booked_usd` / `is_closed`) — all-time snapshot, not dashboard time-range filters.
+   - **EOD postmortem** uses `/grafana/postmortem.json`.
    - After Deploy apply, confirm Infinity datasources still have `X-Grafana-Token` = `GRAFANA_FEED_TOKEN`.
 
-Function URL:
-
-```
-https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws/
-```
-
-Verify feeds:
+Function URL (from tofu output `lambda_function_url`, not a hard-coded host):
 
 ```powershell
-$token = "..." # GRAFANA_FEED_TOKEN
-$base = "https://o5khd5m66qh6sbcodnzkvhm6re0uefds.lambda-url.us-east-1.on.aws"
+# After apply:
+# tofu -chdir=infra output -raw lambda_function_url
+$base = "<lambda_function_url>"   # no trailing slash
+$token = "..."                    # GRAFANA_FEED_TOKEN from trading-lab-vendor-keys
 Invoke-WebRequest "$base/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
 Invoke-WebRequest "$base/grafana/watchlist.json" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "$base/grafana/postmortem.json" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
-Trades/skips 404 until first journal persist. Watchlist JSON is live from `get_watchlist()`; CSV is written on each premarket/postmarket scan.
+Trades/skips return **header-only CSV** until first journal persist (panels stay green). Watchlist JSON is live from `get_watchlist()`. Postmortem returns an empty stub until first EOD.
+
+Grafana Cloud URL: use the stack host from secret `platform-grafana-cloud` / tofu env (not hard-coded in this README).
 
 ## Mobile / desktop apps
 
 Grafana Labs does **not** ship a full dashboards mobile app. Use the browser:
 
-- Phone: open `https://goldcaiman1684.grafana.net` → add to home screen
+- Phone: open your Grafana Cloud stack URL → add to home screen
 - Desktop: same URL in Chrome/Edge
 
 The App Store / Play Store **Grafana IRM** app is only for on-call alerts, not dashboards.
@@ -82,7 +84,8 @@ The App Store / Play Store **Grafana IRM** app is only for on-call alerts, not d
 | Item | Pattern |
 |------|---------|
 | Folder | `apps-<app>` |
-| Infinity | `<app>-trades`, `<app>-skips` |
+| Infinity | `<app>-trades`, `<app>-skips`, `<app>-watchlist`, `<app>-postmortem` |
 | Shared CW | `cloudwatch` |
+| Provision | main / canonical `name_prefix` only |
 
 Use the **grafana-app** skill in `dev-agent-team`.

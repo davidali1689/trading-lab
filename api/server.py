@@ -19,7 +19,12 @@ from trading_lab.config.secrets import has_alpaca_keys, load_secrets
 from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.miss_harvest import run_and_persist_miss_harvest
 from trading_lab.improvement.postmortem import run_and_persist_postmortem
-from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
+from trading_lab.journal.grafana_feed import (
+    empty_postmortem,
+    fetch_latest_csv,
+    fetch_latest_json,
+    token_matches,
+)
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
@@ -184,6 +189,20 @@ def grafana_watchlist_csv(
         media_type=content_type,
         headers={"Cache-Control": "no-store"},
     )
+
+
+@app.get("/grafana/postmortem.json")
+def grafana_postmortem_json(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> dict[str, Any]:
+    """EOD postmortem digest + narrative (empty stub until first EOD persist)."""
+    _require_grafana_token(x_grafana_token)
+    try:
+        return fetch_latest_json("postmortem")
+    except FileNotFoundError:
+        return empty_postmortem()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.get("/grafana/watchlist.json")

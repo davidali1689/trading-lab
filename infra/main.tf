@@ -41,7 +41,10 @@ provider "aws" {
 
 # Prefer explicit TF_VAR_*; else load from Secrets Manager so GHA plan/apply
 # can refresh Infinity datasources without GitHub Grafana secrets.
+# Only the canonical main stack (name_prefix=trading-lab) owns the shared
+# Apps/trading-lab dashboard — feature stacks must not overwrite it.
 data "aws_secretsmanager_secret_version" "platform_grafana" {
+  count     = var.enable_grafana && var.name_prefix == "trading-lab" ? 1 : 0
   secret_id = "platform-grafana-cloud"
 }
 
@@ -50,8 +53,11 @@ data "aws_secretsmanager_secret_version" "vendor_keys" {
 }
 
 locals {
-  platform_grafana = jsondecode(data.aws_secretsmanager_secret_version.platform_grafana.secret_string)
-  vendor_keys      = jsondecode(data.aws_secretsmanager_secret_version.vendor_keys.secret_string)
+  provision_grafana = var.enable_grafana && var.name_prefix == "trading-lab"
+  platform_grafana = local.provision_grafana ? jsondecode(
+    data.aws_secretsmanager_secret_version.platform_grafana[0].secret_string
+  ) : {}
+  vendor_keys = jsondecode(data.aws_secretsmanager_secret_version.vendor_keys.secret_string)
   grafana_url = trimspace(
     var.grafana_url != "" ? var.grafana_url : try(local.platform_grafana["GRAFANA_CLOUD_URL"], "")
   )
@@ -228,9 +234,10 @@ module "market_scheduler" {
 
 module "grafana_dashboard" {
   source = "./modules/grafana-dashboard"
-  count  = var.enable_grafana && local.image_uri != "" ? 1 : 0
+  count  = local.provision_grafana && local.image_uri != "" ? 1 : 0
 
-  app_name            = var.name_prefix
+  # Fixed app_name so Infinity UIDs stay trading-lab-* (matches dashboard JSON).
+  app_name            = "trading-lab"
   folder_uid          = var.grafana_folder_uid
   function_url        = module.lambda_worker[0].lambda_function_url
   grafana_feed_token  = local.grafana_feed_token
@@ -281,4 +288,8 @@ output "grafana_skips_uid" {
 
 output "grafana_watchlist_uid" {
   value = try(module.grafana_dashboard[0].watchlist_uid, null)
+}
+
+output "grafana_postmortem_uid" {
+  value = try(module.grafana_dashboard[0].postmortem_uid, null)
 }

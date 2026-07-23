@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from trading_lab.journal.export_grafana import export_journal_csv
+from trading_lab.journal.open_trades import repair_ghost_reconcile_pnl
 
 logger = logging.getLogger("trading_lab.journal.persist")
 
@@ -89,6 +90,10 @@ def persist_journal_to_s3(
 
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client = boto3.client("s3")
+    # Drop multiplied ghost reconcile P&L before Grafana CSV export.
+    repair = repair_ghost_reconcile_pnl(local_path)
+    if repair.get("zeroed"):
+        logger.info("repaired ghost reconcile pnl rows: %s", repair.get("zeroed"))
     sqlite_key = f"{prefix.rstrip('/')}/{day}/{local_path.name}"
     latest_sqlite = _latest_sqlite_key(prefix, local_path.name)
     client.upload_file(str(local_path), bucket, sqlite_key)

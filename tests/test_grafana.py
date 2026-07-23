@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pytest
+from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 
 from trading_lab.journal.export_grafana import SKIP_COLUMNS, TRADE_COLUMNS, export_journal_csv
-from trading_lab.journal.grafana_feed import fetch_latest_csv, token_matches
+from trading_lab.journal.grafana_feed import empty_csv_header, fetch_latest_csv, token_matches
 from trading_lab.journal.persist import persist_journal_to_s3
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.observability.cw_emf import NAMESPACE, emit_tick_metric
+from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
+from trading_lab.schemas.trades import ExitReason, RunMode, Side, TradeRecord
 
 
 def test_export_empty_writes_headers(tmp_path: Path) -> None:
@@ -26,6 +32,46 @@ def test_export_empty_writes_headers(tmp_path: Path) -> None:
     assert skips[0] == ",".join(SKIP_COLUMNS)
     assert len(trades) == 1
     assert len(skips) == 1
+    assert "status" in TRADE_COLUMNS
+    assert "pnl_booked_usd" in TRADE_COLUMNS
+
+
+def test_export_marks_open_and_ghost(tmp_path: Path) -> None:
+    db = tmp_path / "j.sqlite"
+    j = SqliteJournal(db)
+    now = datetime.now(UTC)
+    open_rec = TradeRecord(
+        trade_id=uuid4(),
+        run_id=uuid4(),
+        found_by_agent="swing_momentum",
+        symbol="OPEN",
+        side=Side.LONG,
+        mode=RunMode.PAPER,
+        setup_tags=[],
+        entry_ts=now,
+        entry_px=Decimal("10"),
+        qty=Decimal("1"),
+        stop_px=Decimal("9"),
+        target_px=Decimal("12"),
+        hold_plan=HoldPlan(
+            horizon=StrategyHorizon.SWING,
+            min_hold_sessions=1,
+            typical_hold_sessions=3,
+            max_hold_sessions=10,
+            summary="swing",
+        ),
+        exit_ts=now,
+        exit_px=Decimal("10"),
+        exit_reason=ExitReason.MANUAL,
+        bars_held=0,
+        fill_model="test",
+        meta={"open": True},
+    )
+    j.write_trade(open_rec)
+    paths = export_journal_csv(db, tmp_path / "out")
+    body = paths["trades"].read_text(encoding="utf-8")
+    assert "open" in body
+    assert ",0," in body or ",0\n" in body or "pnl_booked_usd" in body.splitlines()[0]
 
 
 def test_persist_uploads_sqlite_and_csvs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -71,6 +117,18 @@ def test_fetch_latest_csv(monkeypatch: pytest.MonkeyPatch) -> None:
     assert data == body
     assert "csv" in ctype
     fake.get_object.assert_called_once_with(Bucket="b", Key="grafana/latest/trades.csv")
+
+
+def test_fetch_latest_csv_missing_returns_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JOURNAL_S3_BUCKET", "b")
+    fake = MagicMock()
+    fake.get_object.side_effect = ClientError(
+        {"Error": {"Code": "NoSuchKey", "Message": "missing"}}, "GetObject"
+    )
+    with patch("boto3.client", return_value=fake):
+        data, ctype = fetch_latest_csv("trades")
+    assert data == empty_csv_header("trades")
+    assert "csv" in ctype
 
 
 def test_emit_tick_metric_stdout(capsys: pytest.CaptureFixture[str]) -> None:
@@ -135,6 +193,12 @@ def test_grafana_feed_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
     assert js.status_code == 200
     assert js.json()["count"] == 1
     assert js.json()["rows"][0]["symbol"] == "ABCD"
+
+    with patch("api.server.fetch_latest_json", side_effect=FileNotFoundError("missing")):
+        pm = client.get("/grafana/postmortem.json", headers={"X-Grafana-Token": "tok"})
+    assert pm.status_code == 200
+    assert pm.json()["ok"] is False
+    assert "digest" in pm.json()
 
 
 def test_events_route_accepts_scheduler_payload(monkeypatch: pytest.MonkeyPatch) -> None:

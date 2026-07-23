@@ -120,7 +120,7 @@
       ]
     },
     {
-      "title": "Trade count (journal)",
+      "title": "Closed trade count (journal)",
       "type": "stat",
       "id": 2,
       "gridPos": {
@@ -146,9 +146,9 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "count"
+            "sum"
           ],
-          "fields": "/^symbol$/",
+          "fields": "/^is_closed$/",
           "values": false
         },
         "colorMode": "value",
@@ -173,22 +173,22 @@
           "root_selector": "",
           "columns": [
             {
-              "selector": "symbol",
-              "text": "symbol",
-              "type": "string"
+              "selector": "is_closed",
+              "text": "is_closed",
+              "type": "number"
             },
             {
-              "selector": "pnl_usd",
-              "text": "pnl_usd",
-              "type": "number"
+              "selector": "status",
+              "text": "status",
+              "type": "string"
             }
           ]
         }
       ],
-      "description": "Rows in latest trades.csv (all agents). Not filtered by dashboard time range."
+      "description": "Sum of is_closed in latest trades.csv (closed non-ghost only). All-time snapshot — not dashboard time range."
     },
     {
-      "title": "Sum pnl_usd (journal)",
+      "title": "Sum booked P/L (journal)",
       "type": "stat",
       "id": 3,
       "gridPos": {
@@ -217,7 +217,7 @@
           "calcs": [
             "sum"
           ],
-          "fields": "/^pnl_usd$/",
+          "fields": "/^pnl_booked_usd$/",
           "values": false
         },
         "colorMode": "value",
@@ -241,9 +241,14 @@
           "parser": "backend",
           "columns": [
             {
-              "selector": "pnl_usd",
-              "text": "pnl_usd",
+              "selector": "pnl_booked_usd",
+              "text": "pnl_booked_usd",
               "type": "number"
+            },
+            {
+              "selector": "status",
+              "text": "status",
+              "type": "string"
             },
             {
               "selector": "found_by_agent",
@@ -253,7 +258,7 @@
           ]
         }
       ],
-      "description": "Sum of pnl_usd in latest trades.csv (all agents)."
+      "description": "Sum of pnl_booked_usd (closed non-ghost only; opens/ghosts are 0). All-time latest CSV snapshot — not dashboard time range."
     },
     {
       "title": "Skip count (journal)",
@@ -545,15 +550,16 @@
       ]
     },
     {
-      "title": "Trades",
+      "title": "Trade P/L (each trade)",
       "type": "table",
       "id": 7,
       "gridPos": {
-        "h": 10,
+        "h": 14,
         "w": 24,
         "x": 0,
         "y": 20
       },
+      "description": "One row per journal trade with P/L ($ and %). status=open|closed|ghost. Filter by status/agent/symbol. Footer sums pnl_booked_usd.",
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
         "uid": "trading-lab-trades"
@@ -564,7 +570,7 @@
             "align": "auto",
             "filterable": true
           },
-          "noValue": "0"
+          "noValue": "—"
         },
         "overrides": [
           {
@@ -580,6 +586,149 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pnl_booked_usd"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pnl_pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "entry_px"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 4
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "exit_px"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 4
               }
             ]
           }
@@ -587,8 +736,20 @@
       },
       "options": {
         "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "exit_ts",
+            "desc": true
+          }
+        ],
         "footer": {
-          "show": false
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": "pnl_booked_usd",
+          "countRows": false,
+          "enablePagination": false
         },
         "cellHeight": "sm"
       },
@@ -601,9 +762,19 @@
           "parser": "backend",
           "columns": [
             {
+              "selector": "exit_ts",
+              "text": "exit_ts",
+              "type": "timestamp"
+            },
+            {
               "selector": "entry_ts",
               "text": "entry_ts",
               "type": "timestamp"
+            },
+            {
+              "selector": "status",
+              "text": "status",
+              "type": "string"
             },
             {
               "selector": "found_by_agent",
@@ -641,8 +812,23 @@
               "type": "number"
             },
             {
+              "selector": "pnl_booked_usd",
+              "text": "pnl_booked_usd",
+              "type": "number"
+            },
+            {
+              "selector": "pnl_pct",
+              "text": "pnl_pct",
+              "type": "number"
+            },
+            {
               "selector": "exit_reason",
               "text": "exit_reason",
+              "type": "string"
+            },
+            {
+              "selector": "ghost",
+              "text": "ghost",
               "type": "string"
             }
           ],
@@ -658,6 +844,94 @@
       ]
     },
     {
+      "title": "EOD postmortem",
+      "description": "Latest /grafana/postmortem.json (digest + coach narrative). Empty stub until first EOD.",
+      "type": "table",
+      "id": 14,
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-postmortem"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-postmortem"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
+          "format": "table",
+          "parser": "backend",
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "ts",
+              "text": "ts",
+              "type": "string"
+            },
+            {
+              "selector": "ok",
+              "text": "ok",
+              "type": "string"
+            },
+            {
+              "selector": "digest.pnl_usd_total",
+              "text": "pnl_usd_total",
+              "type": "string"
+            },
+            {
+              "selector": "digest.trade_count",
+              "text": "trade_count",
+              "type": "number"
+            },
+            {
+              "selector": "digest.skip_count",
+              "text": "skip_count",
+              "type": "number"
+            },
+            {
+              "selector": "narrative",
+              "text": "narrative",
+              "type": "string"
+            },
+            {
+              "selector": "detail",
+              "text": "detail",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "Skips",
       "type": "table",
       "id": 8,
@@ -665,7 +939,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 40
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -738,7 +1012,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 50
       },
       "datasource": {
         "type": "cloudwatch",
@@ -802,7 +1076,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 50
       },
       "datasource": {
         "type": "cloudwatch",
@@ -866,7 +1140,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 57
       },
       "datasource": {
         "type": "cloudwatch",

@@ -250,7 +250,12 @@ def reconcile_flat_journal(
             reason = ExitReason.TARGET
         pnl = (exit_px - entry) * plan["qty"]
         close_journal_trade(
-            journal_path, sym, exit_px=exit_px, exit_reason=reason, closed_by="reconcile"
+            journal_path,
+            sym,
+            exit_px=exit_px,
+            exit_reason=reason,
+            closed_by="reconcile",
+            trade_id=plan.get("trade_id"),
         )
         gate.on_close(
             pnl,
@@ -328,6 +333,7 @@ def reassess_open_exits(
                     exit_px=mark if mark > 0 else entry,
                     exit_reason=ExitReason.RISK_KILL,
                     closed_by="orphan_flatten",
+                    trade_id=(plan or {}).get("trade_id"),
                 )
                 out.append(
                     {
@@ -369,7 +375,11 @@ def reassess_open_exits(
                     broker.close_position(sym)
                     pnl = (mark - entry) * pos.qty
                     close_journal_trade(
-                        journal_path, sym, exit_px=mark, exit_reason=ExitReason.TIME
+                        journal_path,
+                        sym,
+                        exit_px=mark,
+                        exit_reason=ExitReason.TIME,
+                        trade_id=plan.get("trade_id"),
                     )
                     gate.on_close(pnl, stop_hit=False, now=now)
                     out.append(
@@ -394,7 +404,11 @@ def reassess_open_exits(
                         broker.close_position(sym)
                         pnl = (mark - entry) * pos.qty
                         close_journal_trade(
-                            journal_path, sym, exit_px=mark, exit_reason=ExitReason.EMA_BREAK
+                            journal_path,
+                            sym,
+                            exit_px=mark,
+                            exit_reason=ExitReason.EMA_BREAK,
+                            trade_id=plan.get("trade_id"),
                         )
                         gate.on_close(pnl, stop_hit=False, now=now)
                         out.append(
@@ -423,7 +437,13 @@ def reassess_open_exits(
                     broker.cancel_open_orders(sym)
                 broker.close_position(sym)
                 pnl = (mark - entry) * pos.qty
-                close_journal_trade(journal_path, sym, exit_px=mark, exit_reason=ExitReason.EOD)
+                close_journal_trade(
+                    journal_path,
+                    sym,
+                    exit_px=mark,
+                    exit_reason=ExitReason.EOD,
+                    trade_id=plan.get("trade_id"),
+                )
                 gate.on_close(pnl, stop_hit=False, now=now)
                 out.append(
                     {
@@ -458,7 +478,13 @@ def reassess_open_exits(
                 reason = (
                     ExitReason.TARGET if action == ExitAction.FLATTEN_TARGET else ExitReason.STOP
                 )
-                close_journal_trade(journal_path, sym, exit_px=mark, exit_reason=reason)
+                close_journal_trade(
+                    journal_path,
+                    sym,
+                    exit_px=mark,
+                    exit_reason=reason,
+                    trade_id=plan.get("trade_id"),
+                )
                 gate.on_close(
                     pnl,
                     stop_hit=(action == ExitAction.FLATTEN_STOP),

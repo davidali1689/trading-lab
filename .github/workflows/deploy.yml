@@ -30,6 +30,7 @@ on:
       - "api/**"
       - "src/**"
       - "infra/**"
+      - "grafana/**"
       - "Dockerfile"
       - "pyproject.toml"
       - "uv.lock"

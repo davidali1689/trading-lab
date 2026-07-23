@@ -41,6 +41,7 @@ def flatten_sniper_paper(journal_path: str) -> list[dict[str, Any]]:
                 exit_px=Decimal(str(mark)),
                 exit_reason=ExitReason.EOD,
                 closed_by="eod_flatten",
+                trade_id=plan.get("trade_id"),
             )
             out.append({"symbol": sym, "ok": True, "exit_px": str(mark)})
             logger.info("EOD flattened sniper position %s", sym)
