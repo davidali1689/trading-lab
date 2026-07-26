@@ -46,7 +46,7 @@ class MidCapSniperSpec(BaseModel):
             "Target 8% (6–8% band); stop 2.5–3.5% (default 3%). Flat by EOD.",
             "Never force a trade — missing gates → SKIP.",
             "Budget: sizes to 1/5 equity; book max 3 positions.",
-            "Paper/backtest: catalyst relaxed. Uses sniper shared_execution.",
+            "Backtest: catalyst relaxed. Paper: catalyst required. Uses sniper shared_execution.",
             "Attribution: found_by_agent=mid_cap_sniper.",
         ]
     )

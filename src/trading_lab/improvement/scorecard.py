@@ -246,7 +246,9 @@ def build_weekly_scorecard(
         net = sum(series, Decimal("0"))
         exp = (net / Decimal(n)) if n else Decimal("0")
         wins = sum(1 for p in series if p > 0)
+        losses = (n - wins) if n else 0
         win_rate = (Decimal(wins) / Decimal(n)) if n else Decimal("0")
+        loss_rate = (Decimal(losses) / Decimal(n)) if n else Decimal("0")
         max_dd = _max_drawdown(series)
         agent_shards = [s for s in shards if s.get("agent_id") == agent_id]
         opps, captured = _capture_from_miss_shards(
@@ -287,8 +289,11 @@ def build_weekly_scorecard(
             agent_id=agent_id,
             trade_count=n,
             skip_count=skips.get(agent_id, 0),
+            win_count=wins,
+            loss_count=losses,
             expectancy_usd=str(exp.quantize(Decimal("0.01"))),
             win_rate=str(win_rate.quantize(Decimal("0.01"))),
+            loss_rate=str(loss_rate.quantize(Decimal("0.01"))),
             net_pnl_usd=str(net.quantize(Decimal("0.01"))),
             max_drawdown_usd=str(max_dd.quantize(Decimal("0.01"))),
             capture_rate=str(cap_rate.quantize(Decimal("0.01"))),
@@ -339,22 +344,15 @@ def persist_scorecard(
             Body=body.encode("utf-8"),
             ContentType="application/json",
         )
+    try:
+        from trading_lab.improvement.scoreboard import refresh_weekly_scoreboard_feed
+
+        feed_out = refresh_weekly_scoreboard_feed(card, bucket=bucket)
+        if feed_out.get("keys"):
+            keys.extend(feed_out["keys"])
+    except Exception:  # noqa: BLE001
+        logger.exception("scoreboard feed refresh failed for %s", card.week_id)
     logger.info("persisted scorecard %s", card.week_id)
     return {"ok": True, "bucket": bucket, "keys": keys, "summary": card.summary}
 
 
-def run_and_persist_scorecard(
-    journal_path: str | Path,
-    *,
-    week_id: str | None = None,
-    miss_shards: list[dict[str, Any]] | None = None,
-    prior: WeeklyScorecard | None = None,
-) -> dict[str, Any]:
-    card = build_weekly_scorecard(
-        journal_path,
-        week_id=week_id,
-        miss_shards=miss_shards,
-        prior=prior,
-    )
-    persist = persist_scorecard(card)
-    return {"ok": persist.get("ok", False), "scorecard": card.to_dict(), "persist": persist}

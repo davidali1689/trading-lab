@@ -8,7 +8,7 @@ Agent Factory / Mission Control is unrelated.
 | Layer | Owner | Detail |
 |-------|--------|--------|
 | Cloud org, folder `Apps/trading-lab`, shared `cloudwatch` | aws-foundation | UID `apps-trading-lab` |
-| Infinity `trading-lab-trades` / `-skips` / `-watchlist` / `-postmortem` + dashboard | this repo | `infra/modules/grafana-dashboard` |
+| Infinity `trading-lab-trades` / `-skips` / `-watchlist` / `-postmortem` / `-scoreboard` + dashboard | this repo | `infra/modules/grafana-dashboard` |
 | CSV/JSON feed + EMF | Lambda | `/grafana/*`, namespace `TradingLab` |
 
 ## One-time (platform)
@@ -52,6 +52,7 @@ $env:TF_VAR_grafana_auth = "glsa_..."
    - **Daily watchlist** panel uses Infinity JSON (`/grafana/watchlist.json`, `root_selector: rows`).
    - Trade stats use **latest journal CSV** (`pnl_booked_usd` / `is_closed`) — all-time snapshot, not dashboard time-range filters.
    - **EOD postmortem** uses `/grafana/postmortem.json`.
+   - **Daily / weekly agent scoreboard** uses `/grafana/scoreboard.json` (`daily.rows` / `weekly.rows`).
    - After Deploy apply, confirm Infinity datasources still have `X-Grafana-Token` = `GRAFANA_FEED_TOKEN`.
 
 Function URL (from tofu output `lambda_function_url`, not a hard-coded host):
@@ -64,9 +65,10 @@ $token = "..."                    # GRAFANA_FEED_TOKEN from trading-lab-vendor-k
 Invoke-WebRequest "$base/grafana/trades.csv" -Headers @{ "X-Grafana-Token" = $token }
 Invoke-WebRequest "$base/grafana/watchlist.json" -Headers @{ "X-Grafana-Token" = $token }
 Invoke-WebRequest "$base/grafana/postmortem.json" -Headers @{ "X-Grafana-Token" = $token }
+Invoke-WebRequest "$base/grafana/scoreboard.json" -Headers @{ "X-Grafana-Token" = $token }
 ```
 
-Trades/skips return **header-only CSV** until first journal persist (panels stay green). Watchlist JSON is live from `get_watchlist()`. Postmortem returns an empty stub until first EOD.
+Trades/skips return **header-only CSV** until first journal persist (panels stay green). Watchlist JSON is live from `get_watchlist()`. Postmortem returns an empty stub until first EOD. Scoreboard returns zeroed agent rows until first EOD (daily) / Friday weekly persist.
 
 Grafana Cloud URL: use the stack host from secret `platform-grafana-cloud` / tofu env (not hard-coded in this README).
 
@@ -84,7 +86,7 @@ The App Store / Play Store **Grafana IRM** app is only for on-call alerts, not d
 | Item | Pattern |
 |------|---------|
 | Folder | `apps-<app>` |
-| Infinity | `<app>-trades`, `<app>-skips`, `<app>-watchlist`, `<app>-postmortem` |
+| Infinity | `<app>-trades`, `<app>-skips`, `<app>-watchlist`, `<app>-postmortem`, `<app>-scoreboard` |
 | Shared CW | `cloudwatch` |
 | Provision | main / canonical `name_prefix` only |
 

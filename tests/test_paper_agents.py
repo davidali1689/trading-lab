@@ -12,12 +12,124 @@ from trading_lab.agents.swing.decision import SwingDecision, SwingStatus, SwingT
 from trading_lab.agents.swing.momentum import CapTier
 from trading_lab.broker.types import BrokerAccount, BrokerOrderResult
 from trading_lab.market_data.types import Bar
-from trading_lab.pipeline.paper_agents import resolve_sniper_agent, run_symbol_paper_tick
+from trading_lab.pipeline.paper_agents import (
+    resolve_market_cap,
+    resolve_sniper_agent,
+    run_symbol_paper_tick,
+)
 from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
 
 
 def test_resolve_sniper_unknown_cap_is_speculative():
     assert resolve_sniper_agent(None, "ELVA") == "speculative_sniper"
+
+
+def test_resolve_market_cap_uses_finnhub_for_mid_band(monkeypatch):
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+    with patch(
+        "trading_lab.pipeline.paper_agents.fetch_market_cap_usd",
+        return_value=Decimal("5000000000"),
+    ) as mock_fetch:
+        cap = resolve_market_cap("XYZ")
+    assert cap == Decimal("5000000000")
+    mock_fetch.assert_called_once_with("XYZ")
+    assert resolve_sniper_agent(cap, "XYZ") == "mid_cap_sniper"
+
+
+def test_resolve_market_cap_finnhub_miss_stays_none(monkeypatch):
+    with patch(
+        "trading_lab.pipeline.paper_agents.fetch_market_cap_usd",
+        return_value=None,
+    ):
+        assert resolve_market_cap("ELVA") is None
+
+
+def test_run_symbol_fetches_cap_when_not_passed(tmp_path, monkeypatch):
+    monkeypatch.setenv("USE_MOCK_BARS", "false")
+    monkeypatch.setenv("ALPACA_API_KEY", "PK")
+    monkeypatch.setenv("ALPACA_API_SECRET", "SK")
+
+    bars = [
+        Bar(
+            symbol="MID",
+            ts=datetime(2026, 7, 15, 14, i, tzinfo=UTC),
+            open=Decimal("40"),
+            high=Decimal("40.5"),
+            low=Decimal("39.8"),
+            close=Decimal("40"),
+            volume=Decimal("10000"),
+            timeframe="1Min",
+        )
+        for i in range(25)
+    ]
+    md = MagicMock()
+    md.get_bars.return_value = bars
+    broker = MagicMock()
+    broker.get_account.return_value = BrokerAccount(
+        equity=Decimal("100000"),
+        cash=Decimal("100000"),
+        buying_power=Decimal("200000"),
+        paper=True,
+    )
+    broker.get_open_positions.return_value = []
+    broker.has_open_position.return_value = False
+    broker.submit_bracket_order.return_value = BrokerOrderResult(
+        order_id="ord-mid-fetch",
+        symbol="MID",
+        status="accepted",
+        qty=Decimal("25"),
+    )
+    sniper_decision = SniperDecision(
+        agent_id="mid_cap_sniper",
+        symbol="MID",
+        status=SniperStatus.ENTER,
+        trade_map=TradeMap(
+            entry_trigger=Decimal("40"),
+            scale_out_point=Decimal("41.6"),
+            final_take_profit=Decimal("43.2"),
+            stop_loss=Decimal("38.8"),
+        ),
+    )
+    swing_decision = SwingDecision(
+        agent_id="swing_momentum",
+        symbol="MID",
+        status=SwingStatus.WATCH,
+        cap_tier=CapTier.MID,
+        hold_plan=HoldPlan(
+            horizon=StrategyHorizon.SWING,
+            min_hold_sessions=1,
+            typical_hold_sessions=4,
+            max_hold_sessions=10,
+            summary="swing",
+        ),
+    )
+
+    with (
+        patch(
+            "trading_lab.pipeline.paper_agents.fetch_market_cap_usd",
+            return_value=Decimal("5000000000"),
+        ),
+        patch("trading_lab.pipeline.paper_agents.resolve_market_data", return_value=md),
+        patch("trading_lab.pipeline.paper_agents.AlpacaPaperBroker", return_value=broker),
+        patch(
+            "trading_lab.pipeline.paper_agents.evaluate_mid_cap_sniper",
+            return_value=sniper_decision,
+        ),
+        patch("trading_lab.pipeline.paper_agents.swing_power_hour", return_value=False),
+        patch("trading_lab.pipeline.swing_tick.resolve_market_data", return_value=md),
+        patch("trading_lab.pipeline.swing_tick.AlpacaPaperBroker", return_value=broker),
+        patch(
+            "trading_lab.pipeline.swing_tick.evaluate_swing_momentum", return_value=swing_decision
+        ),
+        patch("trading_lab.pipeline.swing_tick.swing_power_hour", return_value=False),
+    ):
+        out = run_symbol_paper_tick(
+            symbol="MID",
+            journal_path=str(tmp_path / "j.sqlite"),
+        )
+
+    assert out["sniper_agent"] == "mid_cap_sniper"
+    assert out["market_cap_usd"] == "5000000000"
 
 
 def test_resolve_sniper_spy_is_large():

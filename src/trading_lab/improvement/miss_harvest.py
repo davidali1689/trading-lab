@@ -13,7 +13,7 @@ from typing import Any
 
 from trading_lab.agents import AGENTS
 from trading_lab.market_data.alpaca_screener import AlpacaScreener, ScreenerRow
-from trading_lab.pipeline.paper_agents import resolve_sniper_agent
+from trading_lab.pipeline.paper_agents import resolve_market_cap, resolve_sniper_agent
 from trading_lab.schemas.misses import DailyMissReport, MissBucket, MissRecord
 from trading_lab.selection.watchlist import MIN_PRICE, get_watchlist
 
@@ -158,8 +158,8 @@ def build_miss_report(
             pnl=pnl,
             percent_change=row.percent_change,
         )
-        # Skip strong captures from the miss list (still useful in raw top later)
-        owner = resolve_sniper_agent(None, row.symbol)
+        # Cap from Finnhub (via resolve_market_cap) so mid/large get real ownership.
+        owner = resolve_sniper_agent(resolve_market_cap(row.symbol), row.symbol)
         traded_by = []
         # attribute trades from journal if we re-query — lightweight: any trade ⇒ unknown agents
         if row.symbol in traded:

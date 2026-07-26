@@ -7,6 +7,10 @@ from trading_lab.catalysts.congress import (
     load_congress_catalyst,
 )
 from trading_lab.catalysts.finnhub_news import has_finnhub_key, symbol_has_recent_news
+from trading_lab.catalysts.finnhub_profile import (
+    clear_market_cap_cache,
+    fetch_market_cap_usd,
+)
 from trading_lab.catalysts.types import CatalystKind, CatalystPort, CatalystSignal
 
 __all__ = [
@@ -19,4 +23,6 @@ __all__ = [
     "load_congress_catalyst",
     "has_finnhub_key",
     "symbol_has_recent_news",
+    "clear_market_cap_cache",
+    "fetch_market_cap_usd",
 ]

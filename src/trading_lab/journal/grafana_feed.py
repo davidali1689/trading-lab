@@ -10,13 +10,9 @@ from typing import Any, Literal
 from trading_lab.journal.export_grafana import empty_csv_header
 
 TableName = Literal["trades", "skips", "watchlist"]
-JsonName = Literal["postmortem", "watchlist"]
+JsonName = Literal["postmortem", "watchlist", "scoreboard"]
 
 LATEST_PREFIX = "grafana/latest"
-
-
-def feed_token_configured() -> bool:
-    return bool(os.environ.get("GRAFANA_FEED_TOKEN", "").strip())
 
 
 def token_matches(provided: str | None) -> bool:
@@ -69,7 +65,7 @@ def fetch_latest_json(name: JsonName, *, bucket: str | None = None) -> dict[str,
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
     if not bucket:
         raise FileNotFoundError("JOURNAL_S3_BUCKET unset")
-    if name not in {"postmortem", "watchlist"}:
+    if name not in {"postmortem", "watchlist", "scoreboard"}:
         raise ValueError(f"unsupported json feed: {name}")
 
     try:
@@ -110,3 +106,10 @@ def empty_postmortem() -> dict[str, Any]:
         "ts": "",
         "detail": "missing postmortem.json",
     }
+
+
+def empty_scoreboard() -> dict[str, Any]:
+    """Stub until first EOD daily / Friday weekly scoreboard persist."""
+    from trading_lab.improvement.scoreboard import empty_scoreboard_feed
+
+    return empty_scoreboard_feed()

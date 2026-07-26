@@ -17,14 +17,6 @@ class VendorId(StrEnum):
     UNUSUAL_WHALES = "unusual_whales"
 
 
-class DataRole(StrEnum):
-    PRIMARY_BARS = "primary_bars"
-    PRIMARY_REALTIME = "primary_realtime"
-    SECONDARY_QUOTES = "secondary_quotes"
-    PAPER_BROKER = "paper_broker"
-    SOFT_CATALYST = "soft_catalyst"
-
-
 class VendorLock(BaseModel):
     """Immutable v1 vendor decisions."""
 

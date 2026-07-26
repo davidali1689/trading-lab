@@ -6,11 +6,16 @@ from trading_lab.improvement.miss_harvest import (
     build_miss_report,
     run_and_persist_miss_harvest,
 )
+from trading_lab.improvement.overlay import load_overlay, write_overlay
 from trading_lab.improvement.postmortem import (
     digest_journal,
     persist_postmortem,
     run_and_persist_postmortem,
     run_postmortem,
+)
+from trading_lab.improvement.scoreboard import (
+    build_daily_scoreboard,
+    run_and_persist_daily_scoreboard,
 )
 from trading_lab.improvement.scorecard import build_weekly_scorecard
 from trading_lab.improvement.stack import IMPROVEMENT, ImprovementStack
@@ -32,4 +37,8 @@ __all__ = [
     "run_weekly_coaches",
     "run_friday_review",
     "build_weekly_scorecard",
+    "build_daily_scoreboard",
+    "run_and_persist_daily_scoreboard",
+    "load_overlay",
+    "write_overlay",
 ]

@@ -13,6 +13,7 @@ from trading_lab.agents.sniper.shared_execution import SniperStatus
 from trading_lab.agents.sniper.speculative import SPECULATIVE_SNIPER
 from trading_lab.broker.alpaca import AlpacaPaperBroker
 from trading_lab.catalysts.finnhub_news import has_finnhub_key, symbol_has_recent_news
+from trading_lab.catalysts.finnhub_profile import fetch_market_cap_usd
 from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
@@ -102,11 +103,12 @@ def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str:
 
 
 def resolve_market_cap(symbol: str, explicit: Decimal | None = None) -> Decimal | None:
+    """Explicit → mega-liquid heuristic → Finnhub profile2 (millions→USD)."""
     if explicit is not None:
         return explicit
     if symbol.upper() in LARGE_CAP_SYMBOLS:
         return Decimal("3000000000000")
-    return None
+    return fetch_market_cap_usd(symbol)
 
 
 def run_sniper_paper_tick(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED
@@ -104,6 +105,56 @@ def test_miss_buckets_abc(tmp_path: Path) -> None:
     assert by_sym["AAPL"].bucket == MissBucket.ENTERED_MISSED_MOVE
     assert report.per_agent_top_miss["speculative_sniper"] is not None
     assert report.per_agent_top_miss["speculative_sniper"].symbol == "ZZZZ"
+
+
+def test_miss_owner_uses_resolved_market_cap(tmp_path: Path) -> None:
+    """Owner sniper must use Finnhub/resolve_market_cap — not always speculative."""
+    db = tmp_path / "j.sqlite"
+    SqliteJournal(db)
+    gainers = [
+        ScreenerRow(
+            symbol="MIDD",
+            source="gainer",
+            price=Decimal("40"),
+            percent_change=Decimal("22"),
+        ),
+        ScreenerRow(
+            symbol="HUGE",
+            source="gainer",
+            price=Decimal("80"),
+            percent_change=Decimal("11"),
+        ),
+        ScreenerRow(
+            symbol="TINY",
+            source="gainer",
+            price=Decimal("12"),
+            percent_change=Decimal("30"),
+        ),
+    ]
+
+    def _cap(symbol: str, explicit=None):
+        caps = {
+            "MIDD": Decimal("5000000000"),
+            "HUGE": Decimal("50000000000"),
+            "TINY": Decimal("500000000"),
+        }
+        return caps.get(symbol.upper())
+
+    with patch("trading_lab.improvement.miss_harvest.resolve_market_cap", side_effect=_cap):
+        report = build_miss_report(
+            journal_path=db,
+            injected_gainers=gainers,
+            watchlist_symbols=["MIDD", "HUGE", "TINY"],
+            day="2026-07-24",
+        )
+
+    by_sym = {r.symbol: r for r in report.top_gainers}
+    assert by_sym["MIDD"].owner_sniper == "mid_cap_sniper"
+    assert by_sym["HUGE"].owner_sniper == "large_cap_sniper"
+    assert by_sym["TINY"].owner_sniper == "speculative_sniper"
+    assert report.per_agent_top_miss["mid_cap_sniper"].symbol == "MIDD"
+    assert report.per_agent_top_miss["large_cap_sniper"].symbol == "HUGE"
+    assert report.per_agent_top_miss["speculative_sniper"].symbol == "TINY"
 
 
 def test_weekly_coaches_mock(tmp_path: Path, monkeypatch) -> None:

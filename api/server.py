@@ -19,8 +19,10 @@ from trading_lab.config.secrets import has_alpaca_keys, load_secrets
 from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.miss_harvest import run_and_persist_miss_harvest
 from trading_lab.improvement.postmortem import run_and_persist_postmortem
+from trading_lab.improvement.scoreboard import run_and_persist_daily_scoreboard
 from trading_lab.journal.grafana_feed import (
     empty_postmortem,
+    empty_scoreboard,
     fetch_latest_csv,
     fetch_latest_json,
     token_matches,
@@ -201,6 +203,20 @@ def grafana_postmortem_json(
         return fetch_latest_json("postmortem")
     except FileNotFoundError:
         return empty_postmortem()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/grafana/scoreboard.json")
+def grafana_scoreboard_json(
+    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
+) -> dict[str, Any]:
+    """Daily + weekly per-agent ops scoreboard (Infinity tables)."""
+    _require_grafana_token(x_grafana_token)
+    try:
+        return fetch_latest_json("scoreboard")
+    except FileNotFoundError:
+        return empty_scoreboard()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -425,12 +441,20 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         flatten = flatten_sniper_paper(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
         coach = run_and_persist_postmortem(JOURNAL_PATH)
+        scoreboard = run_and_persist_daily_scoreboard(JOURNAL_PATH)
         results.append(
-            {"hydrate": hydrate, "flatten": flatten, "persist": persist, "postmortem": coach}
+            {
+                "hydrate": hydrate,
+                "flatten": flatten,
+                "persist": persist,
+                "postmortem": coach,
+                "scoreboard": scoreboard,
+            }
         )
         detail = (
-            f"eod flatten + persist + postmortem: flatten={len(flatten)} "
-            f"persist={persist.get('ok')} coach={coach.get('ok')} mock={coach.get('mock')}"
+            f"eod flatten + persist + postmortem + scoreboard: flatten={len(flatten)} "
+            f"persist={persist.get('ok')} coach={coach.get('ok')} mock={coach.get('mock')} "
+            f"scoreboard={scoreboard.get('ok')}"
         )
         logger.info(detail)
         return PhaseResult(

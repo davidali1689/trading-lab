@@ -19,8 +19,11 @@ class AgentScorecard(BaseModel):
     agent_id: str
     trade_count: int = 0
     skip_count: int = 0
+    win_count: int = 0
+    loss_count: int = 0
     expectancy_usd: str = "0"
     win_rate: str = "0"
+    loss_rate: str = "0"
     net_pnl_usd: str = "0"
     max_drawdown_usd: str = "0"
     capture_rate: str = "0"  # 0–1
@@ -37,6 +40,18 @@ class WeeklyScorecard(BaseModel):
     built_at: str
     prior_week_id: str | None = None
     drawdown_cap_usd: str = "500"
+    agents: dict[str, AgentScorecard] = Field(default_factory=dict)
+    summary: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+
+class DailyScoreboard(BaseModel):
+    """Per-day ops scoreboard for all agents (skips, win/loss, PnL)."""
+
+    day: str
+    built_at: str
     agents: dict[str, AgentScorecard] = Field(default_factory=dict)
     summary: str = ""
 

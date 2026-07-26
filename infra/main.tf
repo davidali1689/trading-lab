@@ -293,3 +293,7 @@ output "grafana_watchlist_uid" {
 output "grafana_postmortem_uid" {
   value = try(module.grafana_dashboard[0].postmortem_uid, null)
 }
+
+output "grafana_scoreboard_uid" {
+  value = try(module.grafana_dashboard[0].scoreboard_uid, null)
+}

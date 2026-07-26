@@ -44,10 +44,11 @@ variable "enable" {
 locals {
   base           = trimsuffix(var.function_url, "/")
   feed_host      = trimprefix(local.base, "https://")
-  trades_uid     = "${var.app_name}-trades"
-  skips_uid      = "${var.app_name}-skips"
-  watchlist_uid  = "${var.app_name}-watchlist"
-  postmortem_uid = "${var.app_name}-postmortem"
+  trades_uid      = "${var.app_name}-trades"
+  skips_uid       = "${var.app_name}-skips"
+  watchlist_uid   = "${var.app_name}-watchlist"
+  postmortem_uid  = "${var.app_name}-postmortem"
+  scoreboard_uid  = "${var.app_name}-scoreboard"
   infinity_json = {
     auth_method  = "apiKey"
     apiKeyKey    = "X-Grafana-Token"
@@ -141,6 +142,27 @@ resource "grafana_data_source" "postmortem" {
   }
 }
 
+resource "grafana_data_source" "scoreboard" {
+  count = var.enable ? 1 : 0
+
+  type = "yesoreyeram-infinity-datasource"
+  name = "${var.app_name} scoreboard JSON"
+  uid  = local.scoreboard_uid
+  url  = "${local.base}/grafana/scoreboard.json"
+
+  json_data_encoded = jsonencode(local.infinity_json)
+  secure_json_data_encoded = jsonencode({
+    apiKeyValue = var.grafana_feed_token
+  })
+
+  lifecycle {
+    precondition {
+      condition     = length(var.grafana_feed_token) > 0
+      error_message = "grafana_feed_token must be non-empty (GRAFANA_FEED_TOKEN in trading-lab-vendor-keys)."
+    }
+  }
+}
+
 resource "grafana_dashboard" "agent_pnl" {
   count = var.enable ? 1 : 0
 
@@ -153,6 +175,7 @@ resource "grafana_dashboard" "agent_pnl" {
     grafana_data_source.skips,
     grafana_data_source.watchlist,
     grafana_data_source.postmortem,
+    grafana_data_source.scoreboard,
   ]
 }
 
@@ -170,6 +193,10 @@ output "watchlist_uid" {
 
 output "postmortem_uid" {
   value = try(grafana_data_source.postmortem[0].uid, local.postmortem_uid)
+}
+
+output "scoreboard_uid" {
+  value = try(grafana_data_source.scoreboard[0].uid, local.scoreboard_uid)
 }
 
 output "dashboard_uid" {

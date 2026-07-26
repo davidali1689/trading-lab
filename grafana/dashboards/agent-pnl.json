@@ -120,6 +120,212 @@
       ]
     },
     {
+      "title": "Daily agent scoreboard",
+      "description": "Per-agent ops from /grafana/scoreboard.json",
+      "type": "table",
+      "id": 15,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-scoreboard"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-scoreboard"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
+          "format": "table",
+          "parser": "backend",
+          "root_selector": "daily.rows",
+          "columns": [
+            {
+              "selector": "agent_id",
+              "text": "agent",
+              "type": "string"
+            },
+            {
+              "selector": "trade_count",
+              "text": "trades",
+              "type": "number"
+            },
+            {
+              "selector": "skip_count",
+              "text": "skips",
+              "type": "number"
+            },
+            {
+              "selector": "win_count",
+              "text": "wins",
+              "type": "number"
+            },
+            {
+              "selector": "loss_count",
+              "text": "losses",
+              "type": "number"
+            },
+            {
+              "selector": "win_rate",
+              "text": "win_rate",
+              "type": "string"
+            },
+            {
+              "selector": "loss_rate",
+              "text": "loss_rate",
+              "type": "string"
+            },
+            {
+              "selector": "net_pnl_usd",
+              "text": "net_pnl",
+              "type": "string"
+            },
+            {
+              "selector": "expectancy_usd",
+              "text": "expectancy",
+              "type": "string"
+            },
+            {
+              "selector": "max_drawdown_usd",
+              "text": "max_dd",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Weekly agent scoreboard",
+      "description": "Per-agent ops from /grafana/scoreboard.json",
+      "type": "table",
+      "id": 16,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "trading-lab-scoreboard"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "trading-lab-scoreboard"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "",
+          "url_options": {
+            "method": "GET"
+          },
+          "format": "table",
+          "parser": "backend",
+          "root_selector": "weekly.rows",
+          "columns": [
+            {
+              "selector": "agent_id",
+              "text": "agent",
+              "type": "string"
+            },
+            {
+              "selector": "trade_count",
+              "text": "trades",
+              "type": "number"
+            },
+            {
+              "selector": "skip_count",
+              "text": "skips",
+              "type": "number"
+            },
+            {
+              "selector": "win_count",
+              "text": "wins",
+              "type": "number"
+            },
+            {
+              "selector": "loss_count",
+              "text": "losses",
+              "type": "number"
+            },
+            {
+              "selector": "win_rate",
+              "text": "win_rate",
+              "type": "string"
+            },
+            {
+              "selector": "loss_rate",
+              "text": "loss_rate",
+              "type": "string"
+            },
+            {
+              "selector": "net_pnl_usd",
+              "text": "net_pnl",
+              "type": "string"
+            },
+            {
+              "selector": "expectancy_usd",
+              "text": "expectancy",
+              "type": "string"
+            },
+            {
+              "selector": "max_drawdown_usd",
+              "text": "max_dd",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "Closed trade count (journal)",
       "type": "stat",
       "id": 2,
@@ -127,7 +333,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -185,7 +391,7 @@
           ]
         }
       ],
-      "description": "Sum of is_closed in latest trades.csv (closed non-ghost only). All-time snapshot — not dashboard time range."
+      "description": "Sum of is_closed in latest trades.csv (closed non-ghost only). All-time snapshot \u2014 not dashboard time range."
     },
     {
       "title": "Sum booked P/L (journal)",
@@ -195,7 +401,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 8
+        "y": 16
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -258,7 +464,7 @@
           ]
         }
       ],
-      "description": "Sum of pnl_booked_usd (closed non-ghost only; opens/ghosts are 0). All-time latest CSV snapshot — not dashboard time range."
+      "description": "Sum of pnl_booked_usd (closed non-ghost only; opens/ghosts are 0). All-time latest CSV snapshot \u2014 not dashboard time range."
     },
     {
       "title": "Skip count (journal)",
@@ -268,7 +474,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 8
+        "y": 16
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -336,7 +542,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 8
+        "y": 16
       },
       "datasource": {
         "type": "cloudwatch",
@@ -414,7 +620,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 20
       },
       "datasource": {
         "type": "cloudwatch",
@@ -474,7 +680,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 20
       },
       "datasource": {
         "type": "cloudwatch",
@@ -557,7 +763,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 28
       },
       "description": "One row per journal trade with P/L ($ and %). status=open|closed|ghost. Filter by status/agent/symbol. Footer sums pnl_booked_usd.",
       "datasource": {
@@ -570,7 +776,7 @@
             "align": "auto",
             "filterable": true
           },
-          "noValue": "—"
+          "noValue": "\u2014"
         },
         "overrides": [
           {
@@ -852,7 +1058,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 42
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -864,7 +1070,7 @@
             "align": "auto",
             "filterable": true
           },
-          "noValue": "—"
+          "noValue": "\u2014"
         },
         "overrides": []
       },
@@ -939,7 +1145,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
@@ -1012,7 +1218,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 50
+        "y": 58
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1076,7 +1282,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 58
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1140,7 +1346,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "datasource": {
         "type": "cloudwatch",
