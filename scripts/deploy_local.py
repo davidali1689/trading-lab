@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,7 @@ def run(cmd: list[str], *, cwd: Path | None = None, check: bool = True,
     out = subprocess.run(
         cmd, cwd=cwd or ROOT, env=env,
         capture_output=capture, text=capture or None,
+        shell=(os.name == "nt"),
     )
     if check and out.returncode != 0:
         print(f"FAILED ({out.returncode}): {' '.join(cmd)}")
@@ -80,11 +82,11 @@ def build_and_push() -> str:
     run(["aws", "ecr", "get-login-password", "--region", REGION], capture=True)
     login = subprocess.run(
         ["aws", "ecr", "get-login-password", "--region", REGION],
-        capture_output=True, text=True,
+        capture_output=True, text=True, shell=(os.name == "nt"),
     )
     pw = subprocess.run(
         ["docker", "login", "--username", "AWS", "--password-stdin", registry],
-        input=login.stdout, text=True,
+        input=login.stdout, text=True, shell=(os.name == "nt"),
     )
     if pw.returncode != 0:
         print("FAILED: docker login")
@@ -128,7 +130,7 @@ def main() -> int:
     tofu(["fmt", "-check", "-recursive"])
     tofu(["init", "-input=false"])
     tofu(["validate"])
-    tfvars = ["-var", f"image_uri={image_uri}"]
+    tfvars = ["-var", f"image_uri={image_uri}", "-var", f"image_tag={tag}"]
     plan_args = ["plan", "-input=false", "-out=tfplan", *tfvars]
     if args.destroy:
         plan_args.insert(1, "-destroy")

@@ -11,6 +11,7 @@ and a cost/delta note. Exit 0 = OK to proceed to plan; non-zero = stop.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -26,8 +27,12 @@ FAILURES: list[str] = []
 
 def run(cmd: list[str]) -> tuple[int, str]:
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        return out.returncode, (out.stdout + out.stderr).strip()
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=60,
+                             shell=(os.name == "nt"))
+        text = out.stdout.strip()
+        if out.returncode != 0 and out.stderr.strip():
+            text = f"{text}\n{out.stderr.strip()}".strip()
+        return out.returncode, text
     except Exception as exc:  # noqa: BLE001
         return 1, str(exc)
 
