@@ -7,7 +7,6 @@ from trading_lab.selection.watchlist import (
     load_watchlist,
     save_watchlist,
     watchlist_size,
-    watchlist_to_csv,
 )
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "load_watchlist",
     "save_watchlist",
     "watchlist_size",
-    "watchlist_to_csv",
 ]

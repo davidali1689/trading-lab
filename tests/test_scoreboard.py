@@ -15,8 +15,6 @@ from trading_lab.agents import AGENTS
 from trading_lab.agents.sniper.shared_execution import SNIPER_SHARED
 from trading_lab.improvement.scoreboard import (
     build_daily_scoreboard,
-    build_scoreboard_feed,
-    empty_scoreboard_feed,
     persist_daily_scoreboard,
     run_and_persist_daily_scoreboard,
 )
@@ -160,23 +158,7 @@ def test_weekly_scorecard_includes_loss_rate(tmp_path: Path) -> None:
     assert lc.loss_rate == "0.50"
 
 
-def test_scoreboard_feed_has_daily_and_weekly_rows(tmp_path: Path) -> None:
-    db = tmp_path / "j.sqlite"
-    SqliteJournal(db)
-    daily = build_daily_scoreboard(db, day="2026-07-24")
-    weekly = build_weekly_scorecard(db, week_id="2026-W30", miss_shards=[], prior=None)
-    feed = build_scoreboard_feed(daily=daily, weekly=weekly)
-    assert "daily" in feed and "weekly" in feed
-    assert feed["daily"]["period_id"] == "2026-07-24"
-    assert feed["weekly"]["period_id"] == "2026-W30"
-    assert len(feed["daily"]["rows"]) == len(AGENTS)
-    assert {r["agent_id"] for r in feed["daily"]["rows"]} == set(AGENTS)
-    stub = empty_scoreboard_feed()
-    assert len(stub["daily"]["rows"]) == len(AGENTS)
-    assert stub["daily"]["rows"][0]["win_rate"] == "0.00"
-
-
-def test_persist_daily_scoreboard_writes_s3_and_feed(tmp_path: Path, monkeypatch) -> None:
+def test_persist_daily_scoreboard_writes_s3(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("JOURNAL_S3_BUCKET", "test-bucket")
     db = tmp_path / "j.sqlite"
     SqliteJournal(db)
@@ -187,24 +169,21 @@ def test_persist_daily_scoreboard_writes_s3_and_feed(tmp_path: Path, monkeypatch
     keys = [c.kwargs["Key"] for c in client.put_object.call_args_list]
     assert "scoreboards/daily/2026-07-24.json" in keys
     assert "scoreboards/daily/latest.json" in keys
-    assert "grafana/latest/scoreboard.json" in keys
 
 
-def test_weekly_persist_refreshes_scoreboard_feed(tmp_path: Path, monkeypatch) -> None:
-    """Friday weekly scorecard persist must refresh grafana/latest/scoreboard.json."""
+def test_weekly_scorecard_persist_writes_s3(tmp_path: Path, monkeypatch) -> None:
+    """Friday weekly scorecard persist must write dated + latest scorecard JSON."""
     monkeypatch.setenv("JOURNAL_S3_BUCKET", "test-bucket")
     db = tmp_path / "j.sqlite"
     SqliteJournal(db)
     card = build_weekly_scorecard(db, week_id="2026-W30", miss_shards=[], prior=None)
     client = MagicMock()
-    # No existing feed object
-    client.get_object.side_effect = Exception("missing")
     with patch("boto3.client", return_value=client):
         out = persist_scorecard(card)
     assert out["ok"] is True
     keys = [c.kwargs["Key"] for c in client.put_object.call_args_list]
     assert "scorecards/2026-W30.json" in keys
-    assert "grafana/latest/scoreboard.json" in keys
+    assert "scorecards/latest.json" in keys
 
 
 def test_api_eod_persists_daily_scoreboard(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -241,19 +220,6 @@ def test_api_eod_persists_daily_scoreboard(monkeypatch: pytest.MonkeyPatch) -> N
     assert body["results"][0]["scoreboard"]["ok"] is True
     assert "scoreboard=" in body["detail"]
     mock_board.assert_called_once()
-
-
-def test_grafana_scoreboard_endpoint_stub(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GRAFANA_FEED_TOKEN", "tok")
-    monkeypatch.delenv("JOURNAL_S3_BUCKET", raising=False)
-    from api.server import app
-
-    client = TestClient(app)
-    r = client.get("/grafana/scoreboard.json", headers={"X-Grafana-Token": "tok"})
-    assert r.status_code == 200
-    body = r.json()
-    assert len(body["daily"]["rows"]) == len(AGENTS)
-    assert len(body["weekly"]["rows"]) == len(AGENTS)
 
 
 def test_persist_daily_without_bucket(tmp_path: Path, monkeypatch) -> None:

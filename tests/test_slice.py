@@ -5,7 +5,7 @@ from pathlib import Path
 from trading_lab.agents.sniper import SNIPER_SHARED
 from trading_lab.execution import DEFAULT_FILL_MODEL, RiskGate
 from trading_lab.improvement import IMPROVEMENT
-from trading_lab.journal import SqliteJournal, export_journal_csv
+from trading_lab.journal import SqliteJournal
 from trading_lab.market_data.types import Bar
 from trading_lab.pipeline import run_vertical_slice, smoke_eval_on_mock_bar, walk_forward_bakeoff
 from trading_lab.schemas.trades import Side
@@ -63,18 +63,14 @@ def test_risk_gate_blocks_max_positions():
     assert d.allowed is False
 
 
-def test_vertical_slice_and_grafana_export(tmp_path: Path):
+def test_vertical_slice_journal_counts(tmp_path: Path):
     db = tmp_path / "journal.sqlite"
-    out = tmp_path / "grafana"
     summary = run_vertical_slice(journal_path=str(db), equity=Decimal("100000"))
     assert summary["trades"] + summary["skips"] > 0
     assert "large_cap_sniper" in summary["found_by_agents"] or summary["trades"] == 0
     assert summary["slice_notional"] == "20000.00"
     journal = SqliteJournal(db)
     assert journal.count_trades() == summary["trades"]
-    paths = export_journal_csv(db, out)
-    assert paths["trades"].exists()
-    assert paths["skips"].exists()
 
 
 def test_walk_forward_lists_all_agents(tmp_path: Path):

@@ -254,69 +254,6 @@ def build_daily_watchlist(
     )
 
 
-WATCHLIST_CSV_COLUMNS = (
-    "symbol",
-    "status",
-    "sources",
-    "price",
-    "volume",
-    "percent_change",
-    "reason",
-    "built_at",
-    "watchlist_source",
-    "detail",
-)
-
-
-def watchlist_to_csv(doc: WatchlistDocument) -> str:
-    """CSV for Grafana Infinity (header always present)."""
-    lines = [",".join(WATCHLIST_CSV_COLUMNS)]
-    if doc.candidates:
-        for c in doc.candidates:
-            lines.append(
-                ",".join(
-                    [
-                        _csv_cell(c.symbol),
-                        _csv_cell(c.status),
-                        _csv_cell("|".join(c.sources)),
-                        _csv_cell(c.price),
-                        _csv_cell(c.volume),
-                        _csv_cell(c.percent_change),
-                        _csv_cell(c.reason),
-                        _csv_cell(doc.built_at),
-                        _csv_cell(doc.source),
-                        _csv_cell(doc.detail),
-                    ]
-                )
-            )
-    elif doc.symbols:
-        for sym in doc.symbols:
-            lines.append(
-                ",".join(
-                    [
-                        _csv_cell(sym),
-                        "CANDIDATE",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "symbol_only",
-                        _csv_cell(doc.built_at),
-                        _csv_cell(doc.source),
-                        _csv_cell(doc.detail),
-                    ]
-                )
-            )
-    return "\n".join(lines) + "\n"
-
-
-def _csv_cell(value: str | None) -> str:
-    raw = "" if value is None else str(value)
-    if any(ch in raw for ch in (",", '"', "\n", "\r")):
-        return '"' + raw.replace('"', '""') + '"'
-    return raw
-
-
 def save_watchlist(
     doc: WatchlistDocument,
     *,
@@ -333,20 +270,15 @@ def save_watchlist(
 
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     body = json.dumps(doc.to_dict(), indent=2).encode("utf-8")
-    csv_body = watchlist_to_csv(doc).encode("utf-8")
     client = boto3.client("s3")
     dated_key = f"{prefix.rstrip('/')}/{day}.json"
     latest_key = f"{prefix.rstrip('/')}/latest.json"
-    grafana_key = "grafana/latest/watchlist.csv"
     client.put_object(Bucket=bucket, Key=dated_key, Body=body, ContentType="application/json")
     client.put_object(Bucket=bucket, Key=latest_key, Body=body, ContentType="application/json")
-    client.put_object(
-        Bucket=bucket, Key=grafana_key, Body=csv_body, ContentType="text/csv; charset=utf-8"
-    )
     return {
         "ok": True,
         "bucket": bucket,
-        "keys": [dated_key, latest_key, grafana_key],
+        "keys": [dated_key, latest_key],
         "symbols": doc.symbols,
     }
 

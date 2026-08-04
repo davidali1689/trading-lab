@@ -115,18 +115,26 @@ resource "aws_iam_role_policy" "bedrock_coach" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "bedrock:InvokeModel",
-        "bedrock:Converse",
-        "bedrock:InvokeModelWithResponseStream",
-      ]
-      Resource = [
-        "arn:aws:bedrock:*::foundation-model/*",
-        "arn:aws:bedrock:*:*:inference-profile/*",
-      ]
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:Converse",
+          "bedrock:InvokeModelWithResponseStream",
+        ]
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/*",
+          "arn:aws:bedrock:*:*:inference-profile/*",
+        ]
+      },
+      {
+        # Mantle endpoints (kimi/grok coaches) — separate service prefix.
+        Effect   = "Allow"
+        Action   = ["bedrock-mantle:CreateInference"]
+        Resource = ["*"]
+      },
+    ]
   })
 }
 

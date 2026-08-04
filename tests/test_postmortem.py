@@ -116,7 +116,7 @@ def test_run_postmortem_includes_digest_and_narrative(tmp_path: Path, monkeypatc
     assert report["mock"] is True
 
 
-def test_persist_postmortem_uploads_dated_and_latest(tmp_path: Path, monkeypatch) -> None:
+def test_persist_postmortem_uploads_dated(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("JOURNAL_S3_BUCKET", "bucket")
     report = {"ok": True, "digest": {"trade_count": 0}, "narrative": "n", "mock": True}
     uploaded: dict[str, bytes] = {}
@@ -131,8 +131,7 @@ def test_persist_postmortem_uploads_dated_and_latest(tmp_path: Path, monkeypatch
         out = persist_postmortem(report, day="2026-07-15")
     assert out["ok"] is True
     assert "journals/2026-07-15/postmortem.json" in uploaded
-    assert "grafana/latest/postmortem.json" in uploaded
-    body = json.loads(uploaded["grafana/latest/postmortem.json"])
+    body = json.loads(uploaded["journals/2026-07-15/postmortem.json"])
     assert body["digest"]["trade_count"] == 0
 
 

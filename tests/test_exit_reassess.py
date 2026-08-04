@@ -131,7 +131,9 @@ def test_sniper_bracket_stays_day(monkeypatch):
     assert req.call_args[0][2]["time_in_force"] == "day"
 
 
-def _open_swing(symbol: str, *, entry: str, stop: str, target: str, qty: str = "100") -> TradeRecord:
+def _open_swing(
+    symbol: str, *, entry: str, stop: str, target: str, qty: str = "100"
+) -> TradeRecord:
     now = datetime.now(UTC)
     return TradeRecord(
         trade_id=uuid4(),
@@ -402,7 +404,9 @@ def test_reassess_noop_when_exit_orders_already_resting(tmp_path: Path, monkeypa
     monkeypatch.setenv("ALPACA_API_KEY", "PK")
     monkeypatch.setenv("ALPACA_API_SECRET", "SK")
     journal = SqliteJournal(tmp_path / "j.sqlite")
-    journal.write_trade(_open_swing("IREX", entry="17.16", stop="16.64", target="19.21", qty="1165"))
+    journal.write_trade(
+        _open_swing("IREX", entry="17.16", stop="16.64", target="19.21", qty="1165")
+    )
 
     broker = MagicMock()
     broker.get_open_positions.return_value = [

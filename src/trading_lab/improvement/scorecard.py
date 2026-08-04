@@ -347,13 +347,5 @@ def persist_scorecard(
             Body=body.encode("utf-8"),
             ContentType="application/json",
         )
-    try:
-        from trading_lab.improvement.scoreboard import refresh_weekly_scoreboard_feed
-
-        feed_out = refresh_weekly_scoreboard_feed(card, bucket=bucket)
-        if feed_out.get("keys"):
-            keys.extend(feed_out["keys"])
-    except Exception:  # noqa: BLE001
-        logger.exception("scoreboard feed refresh failed for %s", card.week_id)
     logger.info("persisted scorecard %s", card.week_id)
     return {"ok": True, "bucket": bucket, "keys": keys, "summary": card.summary}

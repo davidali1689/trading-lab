@@ -1,5 +1,5 @@
 # Unattended market clock: EventBridge Scheduler → Lambda worker.
-# Backend configured by cicd-templates deploy job / local -backend-config.
+# Backend: local scripts/deploy_local.py (S3 state + DynamoDB lock).
 # State key: apps/trading-lab/dev/terraform.tfstate
 
 terraform {
@@ -8,10 +8,6 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = ">= 5.0"
-    }
-    grafana = {
-      source  = "grafana/grafana"
-      version = "~> 3.25"
     }
   }
 
@@ -39,34 +35,11 @@ provider "aws" {
   }
 }
 
-# Prefer explicit TF_VAR_*; else load from Secrets Manager so GHA plan/apply
-# can refresh Infinity datasources without GitHub Grafana secrets.
-# Only the canonical main stack (name_prefix=trading-lab) owns the shared
-# Apps/trading-lab dashboard — feature stacks must not overwrite it.
-data "aws_secretsmanager_secret_version" "platform_grafana" {
-  count     = var.enable_grafana && var.name_prefix == "trading-lab" ? 1 : 0
-  secret_id = "platform-grafana-cloud"
-}
-
 data "aws_secretsmanager_secret_version" "vendor_keys" {
   secret_id = "trading-lab-vendor-keys"
 }
 
 locals {
-  provision_grafana = var.enable_grafana && var.name_prefix == "trading-lab"
-  platform_grafana = local.provision_grafana ? jsondecode(
-    data.aws_secretsmanager_secret_version.platform_grafana[0].secret_string
-  ) : {}
-  vendor_keys = jsondecode(data.aws_secretsmanager_secret_version.vendor_keys.secret_string)
-  grafana_url = trimspace(
-    var.grafana_url != "" ? var.grafana_url : try(local.platform_grafana["GRAFANA_CLOUD_URL"], "")
-  )
-  grafana_auth = trimspace(
-    var.grafana_auth != "" ? var.grafana_auth : try(local.platform_grafana["GRAFANA_SERVICE_ACCOUNT_TOKEN"], "")
-  )
-  grafana_feed_token = trimspace(
-    var.grafana_feed_token != "" ? var.grafana_feed_token : try(local.vendor_keys["GRAFANA_FEED_TOKEN"], "")
-  )
   image_uri = var.image_uri != "" ? var.image_uri : (
     var.ecr_repository_url != "" ? "${var.ecr_repository_url}:${var.image_tag}" : ""
   )
@@ -80,11 +53,6 @@ locals {
     Client      = "internal"
     ManagedBy   = "opentofu"
   }
-}
-
-provider "grafana" {
-  url  = local.grafana_url != "" ? local.grafana_url : "https://grafana.invalid"
-  auth = local.grafana_auth != "" ? local.grafana_auth : "disabled"
 }
 
 variable "aws_region" {
@@ -124,7 +92,7 @@ variable "watchlist_size" {
 }
 
 variable "enable_coach_iam" {
-  description = "Create dedicated strategy-coach IAM role (needs GHA iam:CreateRole)."
+  description = "Create dedicated strategy-coach IAM role (needs iam:CreateRole)."
   type        = bool
   default     = false
 }
@@ -132,36 +100,6 @@ variable "enable_coach_iam" {
 variable "kill_switch" {
   type    = string
   default = "0"
-}
-
-variable "enable_grafana" {
-  description = "Provision Infinity datasources + dashboard into platform Grafana Cloud."
-  type        = bool
-  default     = true
-}
-
-variable "grafana_url" {
-  type      = string
-  default   = ""
-  sensitive = true
-}
-
-variable "grafana_auth" {
-  type      = string
-  default   = ""
-  sensitive = true
-}
-
-variable "grafana_feed_token" {
-  description = "Same value as Secrets Manager GRAFANA_FEED_TOKEN."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "grafana_folder_uid" {
-  type    = string
-  default = "apps-trading-lab"
 }
 
 module "journal_bucket" {
@@ -176,8 +114,7 @@ module "vendor_secrets" {
   common_tags = local.common_tags
 }
 
-# Optional: dedicated coach IAM for future AgentCore. Disabled until
-# platform-gha-app-deploy-apply has iam:CreateRole for this name pattern.
+# Optional: dedicated coach IAM for future AgentCore.
 # v1 coaches run on the Lambda worker role (tagged Application/Repo/BedrockCaller).
 module "coach_iam" {
   count              = var.enable_coach_iam ? 1 : 0
@@ -232,19 +169,6 @@ module "market_scheduler" {
   common_tags          = local.common_tags
 }
 
-module "grafana_dashboard" {
-  source = "./modules/grafana-dashboard"
-  count  = local.provision_grafana && local.image_uri != "" ? 1 : 0
-
-  # Fixed app_name so Infinity UIDs stay trading-lab-* (matches dashboard JSON).
-  app_name            = "trading-lab"
-  folder_uid          = var.grafana_folder_uid
-  function_url        = module.lambda_worker[0].lambda_function_url
-  grafana_feed_token  = local.grafana_feed_token
-  dashboard_json_path = "${path.module}/../grafana/dashboards/agent-pnl.json"
-  enable              = true
-}
-
 output "lambda_function_url" {
   value = try(module.lambda_worker[0].lambda_function_url, null)
 }
@@ -276,24 +200,4 @@ output "premarket_alarm" {
 
 output "auto_run_note" {
   value = "ET Mon-Fri: 08:00 prep, 09:30-16:00 ticks, 16:05 eod, 18:00 postmarket+miss harvest; Fri 18:05 weekly coaches. Entries RTH only."
-}
-
-output "grafana_trades_uid" {
-  value = try(module.grafana_dashboard[0].trades_uid, null)
-}
-
-output "grafana_skips_uid" {
-  value = try(module.grafana_dashboard[0].skips_uid, null)
-}
-
-output "grafana_watchlist_uid" {
-  value = try(module.grafana_dashboard[0].watchlist_uid, null)
-}
-
-output "grafana_postmortem_uid" {
-  value = try(module.grafana_dashboard[0].postmortem_uid, null)
-}
-
-output "grafana_scoreboard_uid" {
-  value = try(module.grafana_dashboard[0].scoreboard_uid, null)
 }

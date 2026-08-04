@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, Header, HTTPException, Response
+from fastapi import Body, FastAPI
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
@@ -20,13 +20,6 @@ from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.miss_harvest import run_and_persist_miss_harvest
 from trading_lab.improvement.postmortem import run_and_persist_postmortem
 from trading_lab.improvement.scoreboard import run_and_persist_daily_scoreboard
-from trading_lab.journal.grafana_feed import (
-    empty_postmortem,
-    empty_scoreboard,
-    fetch_latest_csv,
-    fetch_latest_json,
-    token_matches,
-)
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
@@ -51,7 +44,6 @@ from trading_lab.selection.watchlist import (
     build_daily_watchlist,
     get_watchlist,
     save_watchlist,
-    watchlist_to_csv,
 )
 
 logger = logging.getLogger("trading_lab.api")
@@ -125,141 +117,6 @@ def status() -> dict[str, Any]:
         "watchlist_detail": wl.detail,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
-
-
-def _require_grafana_token(x_grafana_token: str | None) -> None:
-    if not token_matches(x_grafana_token):
-        raise HTTPException(status_code=401, detail="invalid or missing X-Grafana-Token")
-
-
-@app.get("/grafana/trades.csv")
-def grafana_trades_csv(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> Response:
-    _require_grafana_token(x_grafana_token)
-    try:
-        body, content_type = fetch_latest_csv("trades")
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(
-        content=body,
-        media_type=content_type,
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@app.get("/grafana/skips.csv")
-def grafana_skips_csv(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> Response:
-    _require_grafana_token(x_grafana_token)
-    try:
-        body, content_type = fetch_latest_csv("skips")
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(
-        content=body,
-        media_type=content_type,
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@app.get("/grafana/watchlist.csv")
-def grafana_watchlist_csv(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> Response:
-    """Live candidates from S3 watchlist (Infinity datasource)."""
-    _require_grafana_token(x_grafana_token)
-    try:
-        body, content_type = fetch_latest_csv("watchlist")
-    except FileNotFoundError:
-        # Fallback: build CSV from JSON watchlist if grafana CSV not written yet
-        wl = get_watchlist()
-        return Response(
-            content=watchlist_to_csv(wl).encode("utf-8"),
-            media_type="text/csv; charset=utf-8",
-            headers={"Cache-Control": "no-store"},
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return Response(
-        content=body,
-        media_type=content_type,
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-@app.get("/grafana/postmortem.json")
-def grafana_postmortem_json(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> dict[str, Any]:
-    """EOD postmortem digest + narrative (empty stub until first EOD persist)."""
-    _require_grafana_token(x_grafana_token)
-    try:
-        return fetch_latest_json("postmortem")
-    except FileNotFoundError:
-        return empty_postmortem()
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/grafana/scoreboard.json")
-def grafana_scoreboard_json(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> dict[str, Any]:
-    """Daily + weekly per-agent ops scoreboard (Infinity tables)."""
-    _require_grafana_token(x_grafana_token)
-    try:
-        return fetch_latest_json("scoreboard")
-    except FileNotFoundError:
-        return empty_scoreboard()
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/grafana/watchlist.json")
-def grafana_watchlist_json(
-    x_grafana_token: str | None = Header(default=None, alias="X-Grafana-Token"),
-) -> dict[str, Any]:
-    """JSON array feed for Infinity (more reliable than CSV in table panels)."""
-    _require_grafana_token(x_grafana_token)
-    wl = get_watchlist()
-    rows: list[dict[str, Any]] = []
-    if wl.candidates:
-        for c in wl.candidates:
-            rows.append(
-                {
-                    "symbol": c.symbol,
-                    "status": c.status,
-                    "sources": "|".join(c.sources),
-                    "price": c.price or "",
-                    "volume": c.volume or "",
-                    "percent_change": c.percent_change or "",
-                    "reason": c.reason,
-                    "built_at": wl.built_at,
-                    "source": wl.source,
-                }
-            )
-    else:
-        for sym in wl.symbols:
-            rows.append(
-                {
-                    "symbol": sym,
-                    "status": "CANDIDATE",
-                    "sources": "",
-                    "price": "",
-                    "volume": "",
-                    "percent_change": "",
-                    "reason": "symbol_only",
-                    "built_at": wl.built_at,
-                    "source": wl.source,
-                }
-            )
-    return {"count": len(rows), "rows": rows, "detail": wl.detail}
 
 
 def _emit_from_summary(summary: dict[str, Any]) -> None:

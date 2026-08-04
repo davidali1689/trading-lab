@@ -117,10 +117,9 @@ def persist_postmortem(
     *,
     bucket: str | None = None,
     prefix: str = "journals",
-    grafana_prefix: str = "grafana/latest",
     day: str | None = None,
 ) -> dict[str, Any]:
-    """Upload postmortem.json (dated + grafana/latest)."""
+    """Upload postmortem.json (dated)."""
     bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
     if not bucket:
         return {"ok": False, "detail": "JOURNAL_S3_BUCKET unset — skip postmortem persist"}
@@ -133,12 +132,10 @@ def persist_postmortem(
     day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     body = json.dumps(report, indent=2).encode("utf-8")
     dated = f"{prefix.rstrip('/')}/{day}/postmortem.json"
-    latest = f"{grafana_prefix.rstrip('/')}/postmortem.json"
     client = boto3.client("s3")
     client.put_object(Bucket=bucket, Key=dated, Body=body, ContentType="application/json")
-    client.put_object(Bucket=bucket, Key=latest, Body=body, ContentType="application/json")
-    logger.info("persisted postmortem to s3://%s/%s", bucket, latest)
-    return {"ok": True, "bucket": bucket, "keys": [dated, latest]}
+    logger.info("persisted postmortem to s3://%s/%s", bucket, dated)
+    return {"ok": True, "bucket": bucket, "keys": [dated]}
 
 
 def run_and_persist_postmortem(db_path: str | Path) -> dict[str, Any]:

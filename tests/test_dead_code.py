@@ -4,17 +4,12 @@ from __future__ import annotations
 
 import trading_lab.config.vendors as vendors
 import trading_lab.improvement.scorecard as scorecard_mod
-import trading_lab.journal.grafana_feed as grafana_feed
 from trading_lab.agents.sniper.mid_cap import MID_CAP_SNIPER
 from trading_lab.improvement.overlay import load_overlay, write_overlay
 
 
 def test_unused_data_role_enum_removed() -> None:
     assert not hasattr(vendors, "DataRole")
-
-
-def test_unused_feed_token_configured_removed() -> None:
-    assert not hasattr(grafana_feed, "feed_token_configured")
 
 
 def test_unused_run_and_persist_scorecard_wrapper_removed() -> None:

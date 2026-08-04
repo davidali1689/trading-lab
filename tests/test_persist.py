@@ -71,4 +71,4 @@ def test_persist_writes_latest_sqlite(tmp_path, monkeypatch):
     assert out["latest_key"] == "journals/latest/trading-lab-journal.sqlite"
     keys = [c.args[2] for c in client.upload_file.call_args_list]
     assert "journals/latest/trading-lab-journal.sqlite" in keys
-    assert "grafana/latest/skips.csv" in keys
+    assert any(k.startswith("journals/") and k.endswith(".sqlite") for k in keys)
