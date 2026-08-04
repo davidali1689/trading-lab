@@ -66,9 +66,7 @@ def make_risk_gate(
         risk = RiskGate(config=cfg)
     positions = broker.get_open_positions()
     risk.state.open_positions = len(positions)
-    risk.state.open_unrealized_pl = sum(
-        (p.unrealized_pl for p in positions), Decimal("0")
-    )
+    risk.state.open_unrealized_pl = sum((p.unrealized_pl for p in positions), Decimal("0"))
     logger.info(
         "budget equity=%s slice=%s max_open=%s cool_until=%s day_pnl=%s",
         equity,

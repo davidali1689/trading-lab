@@ -120,8 +120,7 @@ class AlpacaScreener:
         """Latest trade price; used when screener rows carry no price (most_actives)."""
         params = urllib.parse.urlencode({"feed": feed})
         url = (
-            f"{self.data_url}/v2/stocks/"
-            f"{urllib.parse.quote(symbol.upper())}/trades/latest?{params}"
+            f"{self.data_url}/v2/stocks/{urllib.parse.quote(symbol.upper())}/trades/latest?{params}"
         )
         try:
             payload = self._get_json(url)

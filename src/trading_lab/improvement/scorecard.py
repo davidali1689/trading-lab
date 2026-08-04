@@ -357,5 +357,3 @@ def persist_scorecard(
         logger.exception("scoreboard feed refresh failed for %s", card.week_id)
     logger.info("persisted scorecard %s", card.week_id)
     return {"ok": True, "bucket": bucket, "keys": keys, "summary": card.summary}
-
-

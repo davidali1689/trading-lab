@@ -97,9 +97,7 @@ def _agent_to_ops_row(card: AgentScorecard) -> dict[str, Any]:
 
 
 def _zero_ops_row(agent_id: str) -> dict[str, Any]:
-    return _agent_to_ops_row(
-        AgentScorecard(agent_id=agent_id, win_rate="0.00", loss_rate="0.00")
-    )
+    return _agent_to_ops_row(AgentScorecard(agent_id=agent_id, win_rate="0.00", loss_rate="0.00"))
 
 
 def _empty_agent_rows() -> list[dict[str, Any]]:
@@ -130,9 +128,7 @@ def build_scoreboard_feed(
     else:
         daily_block = {
             "period_id": daily.day,
-            "rows": [
-                _agent_to_ops_row(daily.agents[aid]) for aid in AGENTS if aid in daily.agents
-            ]
+            "rows": [_agent_to_ops_row(daily.agents[aid]) for aid in AGENTS if aid in daily.agents]
             or _empty_agent_rows(),
         }
         # Ensure all agents present
