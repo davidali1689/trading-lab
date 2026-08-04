@@ -94,6 +94,37 @@ def _is_sniper(agent: str) -> bool:
     return agent in SNIPER_AGENTS
 
 
+def _close_position_retry(
+    broker: AlpacaPaperBroker,
+    symbol: str,
+    *,
+    qty: Decimal | None = None,
+    attempts: int = 3,
+    wait_sec: float = 1.0,
+) -> dict:
+    """Close with cancel+retry when shares are held_for_orders by bracket legs.
+
+    2026-08-04: reassess hit 403 'insufficient qty available' on AAPL/NVDA —
+    the sell raced still-open exit legs. Cancel and retry instead of failing.
+    """
+    import time
+
+    last: Exception | None = None
+    for _ in range(attempts):
+        try:
+            if qty is None:
+                return broker.close_position(symbol)
+            return broker.close_position(symbol, qty=qty)
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if "insufficient qty" not in str(exc):
+                raise
+            broker.cancel_open_orders(symbol)
+            time.sleep(wait_sec)
+    assert last is not None
+    raise last
+
+
 def _sessions_held(entry_ts: str | None, now: datetime) -> int:
     if not entry_ts:
         return 0
@@ -326,7 +357,7 @@ def reassess_open_exits(
         if plan is None or entry <= 0 or plan["stop_px"] <= 0 or plan["target_px"] <= 0:
             try:
                 broker.cancel_open_orders(sym)
-                broker.close_position(sym)
+                _close_position_retry(broker, sym)
                 close_journal_trade(
                     journal_path,
                     sym,
@@ -372,7 +403,7 @@ def reassess_open_exits(
                 try:
                     if has_exits:
                         broker.cancel_open_orders(sym)
-                    broker.close_position(sym)
+                    _close_position_retry(broker, sym)
                     pnl = (mark - entry) * pos.qty
                     close_journal_trade(
                         journal_path,
@@ -401,7 +432,7 @@ def reassess_open_exits(
                     try:
                         if has_exits:
                             broker.cancel_open_orders(sym)
-                        broker.close_position(sym)
+                        _close_position_retry(broker, sym)
                         pnl = (mark - entry) * pos.qty
                         close_journal_trade(
                             journal_path,
@@ -435,7 +466,7 @@ def reassess_open_exits(
             try:
                 if has_exits:
                     broker.cancel_open_orders(sym)
-                broker.close_position(sym)
+                _close_position_retry(broker, sym)
                 pnl = (mark - entry) * pos.qty
                 close_journal_trade(
                     journal_path,
@@ -473,7 +504,7 @@ def reassess_open_exits(
             if action in {ExitAction.FLATTEN_TARGET, ExitAction.FLATTEN_STOP}:
                 if has_exits:
                     broker.cancel_open_orders(sym)
-                broker.close_position(sym)
+                _close_position_retry(broker, sym)
                 pnl = (mark - entry) * pos.qty
                 reason = (
                     ExitReason.TARGET if action == ExitAction.FLATTEN_TARGET else ExitReason.STOP
@@ -510,7 +541,7 @@ def reassess_open_exits(
                 if not scaled and pos.qty >= 2:
                     sell_qty = _half_qty(pos.qty)
                     broker.cancel_open_orders(sym)
-                    broker.close_position(sym, qty=sell_qty)
+                    _close_position_retry(broker, sym, qty=sell_qty)
                     remain = pos.qty - sell_qty
                     if remain < 1:
                         remain = Decimal("1")

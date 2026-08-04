@@ -64,7 +64,11 @@ def make_risk_gate(
         risk.config = cfg
     else:
         risk = RiskGate(config=cfg)
-    risk.state.open_positions = len(broker.get_open_positions())
+    positions = broker.get_open_positions()
+    risk.state.open_positions = len(positions)
+    risk.state.open_unrealized_pl = sum(
+        (p.unrealized_pl for p in positions), Decimal("0")
+    )
     logger.info(
         "budget equity=%s slice=%s max_open=%s cool_until=%s day_pnl=%s",
         equity,
@@ -101,6 +105,27 @@ def write_skip(
             meta=meta or {},
         )
     )
+
+
+def _bracket_legs(broker: AlpacaPaperBroker, order_id: str) -> list[dict] | None:
+    """Nested bracket legs, or None when the broker does not expose them."""
+    try:
+        raw = broker.get_order(order_id)
+    except Exception:  # noqa: BLE001 — cannot verify; do not punish the entry
+        return None
+    legs = raw.get("legs")
+    if not isinstance(legs, list) or not legs:
+        return None
+    return [leg for leg in legs if isinstance(leg, dict)]
+
+
+def _has_stop_leg(legs: list[dict]) -> bool:
+    for leg in legs:
+        side = str(leg.get("side") or "").lower()
+        otype = str(leg.get("type") or "").lower()
+        if side == "sell" and otype.startswith("stop"):
+            return True
+    return False
 
 
 def submit_paper_intent(
@@ -228,6 +253,67 @@ def submit_paper_intent(
 
     entry_px = fill.filled_avg_price or intent.entry_px
     qty = fill.qty if fill.qty > 0 else intent.qty
+
+    # F3: never sit naked — if Alpaca exposes legs and the stop leg is absent,
+    # flatten immediately instead of riding an unprotected position (ZYBT 07-21).
+    if (
+        isinstance(broker, AlpacaPaperBroker)
+        and order.order_id
+        and status in {"filled", "partially_filled"}
+    ):
+        legs = _bracket_legs(broker, order.order_id)
+        if legs is not None and not _has_stop_leg(legs):
+            logger.error(
+                "bracket stop leg missing for %s order=%s — fail-safe flatten",
+                symbol,
+                order.order_id,
+            )
+            try:
+                broker.cancel_open_orders(symbol)
+                broker.close_position(symbol)
+            except Exception:  # noqa: BLE001
+                logger.exception("fail-safe flatten failed for %s", symbol)
+            trade = TradeRecord(
+                trade_id=uuid4(),
+                run_id=run_id,
+                found_by_agent=agent,
+                symbol=symbol,
+                side=Side.LONG,
+                mode=RunMode.PAPER,
+                setup_tags=intent.setup_tags,
+                entry_ts=bar_ts,
+                entry_px=entry_px,
+                qty=qty,
+                stop_px=intent.stop_px,
+                target_px=intent.target_px,
+                hold_plan=intent.hold_plan,
+                exit_ts=bar_ts,
+                exit_px=entry_px,
+                exit_reason=ExitReason.RISK_KILL,
+                bars_held=0,
+                fill_model="alpaca_paper_bracket",
+                meta={
+                    "open": False,
+                    "alpaca_order_id": order.order_id,
+                    "alpaca_status": fill.status,
+                    "equity": str(equity),
+                    "paper_account": True,
+                    "stop_leg_missing": True,
+                    "closed_by": "bracket_leg_failsafe",
+                },
+            )
+            journal.write_trade(trade)
+            return {
+                "symbol": symbol,
+                "mode": "paper",
+                "status": "STOP_LEG_MISSING_FLATTENED",
+                "found_by_agent": agent,
+                "order_id": order.order_id,
+                "equity": str(equity),
+                "orders": 1,
+                "skips": 0,
+            }
+
     risk.on_open()
     if journal_path:
         save_risk_gate(journal_path, risk)

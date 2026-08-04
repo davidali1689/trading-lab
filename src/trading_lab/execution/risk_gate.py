@@ -19,6 +19,7 @@ class RiskGateState(BaseModel):
     open_positions: int = 0
     day: date | None = None
     realized_pnl_today: Decimal = Decimal("0")
+    open_unrealized_pl: Decimal = Decimal("0")
     last_stop_ts: datetime | None = None
     cooling_off_until: datetime | None = None
 
@@ -50,7 +51,8 @@ class RiskGate(BaseModel):
         if self.state.day != day:
             self.state.day = day
             self.state.realized_pnl_today = Decimal("0")
-        if self.state.realized_pnl_today <= -self.config.max_daily_loss_usd:
+        day_total = self.state.realized_pnl_today + self.state.open_unrealized_pl
+        if day_total <= -self.config.max_daily_loss_usd:
             return RiskDecision(
                 allowed=False,
                 skip_reason=SkipReason.DAILY_LOSS_HIT,

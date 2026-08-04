@@ -135,10 +135,32 @@ def _rank_key(row: ScreenerRow) -> tuple:
     return (source_rank, -vol, -pct)
 
 
-def _passes_cheap_filters(row: ScreenerRow) -> tuple[bool, str]:
+def _last_trade_price(client: Any, symbol: str) -> Decimal | None:
+    """Resolve price when screener row has none (most_actives). None on failure."""
+    fn = getattr(client, "last_trade_price", None)
+    if fn is None:
+        return None
+    try:
+        px = fn(symbol)
+    except Exception:  # noqa: BLE001 — fail closed on vendor errors
+        return None
+    if px is None:
+        return None
+    try:
+        price = Decimal(str(px))
+    except Exception:  # noqa: BLE001
+        return None
+    return price if price > 0 else None
+
+
+def _passes_cheap_filters(row: ScreenerRow, *, price: Decimal | None = None) -> tuple[bool, str]:
     if not _looks_like_common_equity(row.symbol):
         return False, "not_common_equity_ticker"
-    if row.price is not None and row.price < MIN_PRICE:
+    px = price if price is not None else row.price
+    # Fail closed: unknown price must not bypass the penny floor (2026-08-04: ENSC/ZBAO).
+    if px is None:
+        return False, "price_unresolved"
+    if px < MIN_PRICE:
         return False, f"price<{MIN_PRICE}"
     # Most-actives often lack price; volume floor when present
     if row.volume is not None and row.volume < MIN_ACTIVE_VOLUME and row.source == "most_actives":
@@ -184,17 +206,18 @@ def build_daily_watchlist(
         )
 
     merged = _merge_rows([*actives, *movers])
-    shortlist: list[ScreenerRow] = []
+    shortlist: list[tuple[ScreenerRow, Decimal]] = []
     rejected: list[str] = []
     for row in sorted(merged.values(), key=_rank_key):
-        ok, reason = _passes_cheap_filters(row)
-        if not ok:
+        price = row.price if row.price is not None else _last_trade_price(client, row.symbol)
+        ok, reason = _passes_cheap_filters(row, price=price)
+        if not ok or price is None:
             rejected.append(f"{row.symbol}:{reason}")
             continue
-        shortlist.append(row)
+        shortlist.append((row, price))
 
     candidates: list[WatchlistCandidate] = []
-    for row in shortlist:
+    for row, price in shortlist:
         if len(candidates) >= size:
             break
         if verify_assets:
@@ -208,7 +231,7 @@ def build_daily_watchlist(
             WatchlistCandidate(
                 symbol=row.symbol,
                 sources=sources,
-                price=str(row.price) if row.price is not None else None,
+                price=str(price),
                 volume=str(row.volume) if row.volume is not None else None,
                 percent_change=str(row.percent_change) if row.percent_change is not None else None,
                 reason="screener_pass",

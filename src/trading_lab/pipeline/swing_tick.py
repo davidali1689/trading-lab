@@ -27,6 +27,7 @@ from trading_lab.pipeline.paper_submit import (
     write_skip,
 )
 from trading_lab.schedule import swing_power_hour
+from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import SkipReason
 
 logger = logging.getLogger("trading_lab.swing_tick")
@@ -206,6 +207,26 @@ def run_swing_paper_tick(
         )
         base["status"] = "SKIP"
         base["detail"] = "already_open"
+        base["skips"] = 1
+        return base
+
+    # F2: one ENTER per symbol per ET session day per agent.
+    day_start_et = now_et().replace(hour=0, minute=0, second=0, microsecond=0)
+    entries_today = journal.count_symbol_entries_since(
+        symbol, decision.agent_id, day_start_et.astimezone(timezone.utc).isoformat()
+    )
+    if entries_today >= 1:
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=decision.agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=f"repeat_entry_symbol_day entries_today={entries_today}",
+        )
+        base["status"] = "SKIP"
+        base["detail"] = "repeat_entry_symbol_day"
         base["skips"] = 1
         return base
 

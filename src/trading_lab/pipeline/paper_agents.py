@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+import os
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -29,6 +30,7 @@ from trading_lab.pipeline.paper_submit import (
 )
 from trading_lab.pipeline.swing_tick import run_swing_paper_tick
 from trading_lab.schedule import swing_power_hour
+from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode, SkipReason
 
 logger = logging.getLogger("trading_lab.paper_agents")
@@ -83,6 +85,27 @@ LARGE_CAP_SYMBOLS = frozenset(
         "GOOG",
         "META",
         "TSLA",
+        # Frequent watchlist names that were mis-routed speculative on Finnhub miss.
+        "INTC",
+        "PLTR",
+        "NOK",
+        "SOFI",
+        "AMD",
+        "MU",
+        "UBER",
+        "COIN",
+        "HOOD",
+    }
+)
+
+# Known $2B–$10B names → mid_cap route when Finnhub cap is unavailable.
+MID_CAP_SYMBOLS = frozenset(
+    {
+        "AAL",
+        "SNAP",
+        "RBLX",
+        "PLUG",
+        "LCID",
     }
 )
 
@@ -92,6 +115,8 @@ def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str:
     sym = symbol.upper()
     if sym in LARGE_CAP_SYMBOLS:
         return LARGE_CAP_SNIPER.agent_id
+    if sym in MID_CAP_SYMBOLS:
+        return MID_CAP_SNIPER.agent_id
     if market_cap_usd is None:
         # Screener watchlist default → speculative
         return SPECULATIVE_SNIPER.agent_id
@@ -103,12 +128,30 @@ def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str:
 
 
 def resolve_market_cap(symbol: str, explicit: Decimal | None = None) -> Decimal | None:
-    """Explicit → mega-liquid heuristic → Finnhub profile2 (millions→USD)."""
+    """Explicit → static-list heuristic → Finnhub profile2 (millions→USD)."""
     if explicit is not None:
         return explicit
     if symbol.upper() in LARGE_CAP_SYMBOLS:
         return Decimal("3000000000000")
+    if symbol.upper() in MID_CAP_SYMBOLS:
+        return Decimal("5000000000")
     return fetch_market_cap_usd(symbol)
+
+
+def _max_entries_per_symbol_day() -> int:
+    try:
+        return max(1, int(os.environ.get("MAX_ENTRIES_PER_SYMBOL_DAY", "1")))
+    except ValueError:
+        return 1
+
+
+def _spec_last_entry_et() -> time:
+    raw = os.environ.get("SPEC_LAST_ENTRY_ET", "15:00")
+    try:
+        hh, mm = raw.split(":", 1)
+        return time(int(hh), int(mm))
+    except (ValueError, AttributeError):
+        return time(15, 0)
 
 
 def run_sniper_paper_tick(
@@ -179,6 +222,52 @@ def run_sniper_paper_tick(
             "found_by_agent": agent_id,
             "detail": "already_open",
             "equity": str(equity),
+            "orders": 0,
+            "skips": 1,
+        }
+
+    # F2: one ENTER per symbol per ET session day per agent (ENSC 3x, ZYBT 6x).
+    day_start_et = now_et().replace(hour=0, minute=0, second=0, microsecond=0)
+    entries_today = journal.count_symbol_entries_since(
+        symbol, agent_id, day_start_et.astimezone(timezone.utc).isoformat()
+    )
+    if entries_today >= _max_entries_per_symbol_day():
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=f"repeat_entry_symbol_day entries_today={entries_today}",
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "SKIP",
+            "found_by_agent": agent_id,
+            "detail": "repeat_entry_symbol_day",
+            "orders": 0,
+            "skips": 1,
+        }
+
+    # F9: no fresh speculative entries late in the session (intraday, flat by EOD).
+    if agent_id == SPECULATIVE_SNIPER.agent_id and now_et().time() >= _spec_last_entry_et():
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.OUTSIDE_WINDOW,
+            detail=f"speculative_late_first_entry et={now_et().time()}",
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "SKIP",
+            "found_by_agent": agent_id,
+            "detail": "speculative_late_first_entry",
             "orders": 0,
             "skips": 1,
         }

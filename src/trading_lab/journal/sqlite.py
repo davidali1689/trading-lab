@@ -95,6 +95,28 @@ class SqliteJournal:
                 ),
             )
 
+    def count_symbol_entries_since(self, symbol: str, agent_id: str, since_iso: str) -> int:
+        """Entries for (symbol, agent) with entry_ts >= since_iso (UTC ISO text)."""
+        with self._conn() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) FROM trades
+                WHERE UPPER(symbol) = ? AND found_by_agent = ? AND entry_ts >= ?
+                """,
+                (symbol.upper(), agent_id, since_iso),
+            ).fetchone()
+        return int(row[0]) if row else 0
+
+    def delete_skips_before(self, cutoff_iso: str) -> int:
+        """Retention prune: drop old skip rows (S3 dated copies keep history)."""
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM skips WHERE ts < ?", (cutoff_iso,))
+            removed = int(cur.rowcount or 0)
+        if removed:
+            with self._conn() as conn:
+                conn.execute("VACUUM")
+        return removed
+
     def write_skip(self, skip: SkipEvent) -> None:
         payload = skip.model_dump(mode="json")
         with self._conn() as conn:

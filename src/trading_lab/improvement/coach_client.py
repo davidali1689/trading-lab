@@ -100,16 +100,36 @@ class CoachClient:
         import boto3
 
         client = boto3.client("bedrock-runtime", region_name=self.region)
-        response = client.converse(
-            modelId=model_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"text": f"{system}\n\n---\n\n{user_message}"}],
-                }
-            ],
-            inferenceConfig={"maxTokens": max_tokens, "temperature": 0.2},
-        )
+        try:
+            response = client.converse(
+                modelId=model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": f"{system}\n\n---\n\n{user_message}"}],
+                    }
+                ],
+                inferenceConfig={"maxTokens": max_tokens, "temperature": 0.2},
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Bedrock often requires the regional inference-profile prefix;
+            # 2026-08-04 W31 coaches died on ValidationException for the bare ID.
+            if "model identifier" in str(exc) and not model_id.startswith("us."):
+                prefixed = f"us.{model_id}"
+                logger.warning("converse model %s invalid; retrying as %s", model_id, prefixed)
+                response = client.converse(
+                    modelId=prefixed,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [{"text": f"{system}\n\n---\n\n{user_message}"}],
+                        }
+                    ],
+                    inferenceConfig={"maxTokens": max_tokens, "temperature": 0.2},
+                )
+                self.model_id = prefixed
+            else:
+                raise
         return response["output"]["message"]["content"][0]["text"]
 
     def _mantle_chat(

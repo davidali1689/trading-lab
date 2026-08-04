@@ -14,8 +14,32 @@ from pathlib import Path
 
 from trading_lab.journal.export_grafana import export_journal_csv
 from trading_lab.journal.open_trades import repair_ghost_reconcile_pnl
+from trading_lab.journal.sqlite import SqliteJournal
 
 logger = logging.getLogger("trading_lab.journal.persist")
+
+
+def _skip_keep_days() -> int:
+    try:
+        return max(1, int(os.environ.get("JOURNAL_SKIP_KEEP_DAYS", "10")))
+    except ValueError:
+        return 10
+
+
+def prune_journal(local_path: str | Path, *, keep_days: int | None = None) -> dict:
+    """Bound /tmp growth: drop skip rows older than keep_days, then VACUUM.
+
+    Lambda /tmp filled 2026-08-04 (~90MB sqlite, 123k skips) → /events 500s.
+    Trades are never pruned; dated S3 copies retain full skip history.
+    """
+    days = keep_days if keep_days is not None else _skip_keep_days()
+    cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
+    cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
+    journal = SqliteJournal(local_path)
+    removed = journal.delete_skips_before(cutoff_iso)
+    if removed:
+        logger.info("pruned %s skip rows older than %sd from journal", removed, days)
+    return {"ok": True, "pruned_skips": removed, "keep_days": days}
 
 
 def _latest_sqlite_key(prefix: str, name: str) -> str:
@@ -94,6 +118,7 @@ def persist_journal_to_s3(
     repair = repair_ghost_reconcile_pnl(local_path)
     if repair.get("zeroed"):
         logger.info("repaired ghost reconcile pnl rows: %s", repair.get("zeroed"))
+    prune = prune_journal(local_path)
     sqlite_key = f"{prefix.rstrip('/')}/{day}/{local_path.name}"
     latest_sqlite = _latest_sqlite_key(prefix, local_path.name)
     client.upload_file(str(local_path), bucket, sqlite_key)
@@ -115,4 +140,5 @@ def persist_journal_to_s3(
         "key": sqlite_key,
         "latest_key": latest_sqlite,
         "csv_keys": csv_keys,
+        "prune": prune,
     }

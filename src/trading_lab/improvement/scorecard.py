@@ -133,12 +133,15 @@ def _capture_from_miss_shards(
             opps += 1
             traded_by = row.get("traded_by") or []
             bucket = str(row.get("bucket") or "")
-            # Captured if this agent traded it and not a weak C miss for them
+            # Captured = agent participated with positive P&L. Previously bucket C
+            # (entered, weak vs the move) never counted, pinning capture_rate at 0.
             if agent_id in traded_by:
-                # weak miss still counts as opportunity not fully captured
-                if "C_entered_missed_move" in bucket:
-                    continue
-                captured += 1
+                pnl_pct = row.get("trade_pnl_pct")
+                try:
+                    if pnl_pct is not None and Decimal(str(pnl_pct)) > 0:
+                        captured += 1
+                except Exception:  # noqa: BLE001
+                    pass
             elif bucket == "" and row.get("trade_pnl_pct"):
                 try:
                     if Decimal(str(row["trade_pnl_pct"])) > 0:

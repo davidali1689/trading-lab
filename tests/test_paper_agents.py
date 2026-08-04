@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 from trading_lab.agents.sniper.decision import SniperDecision, TradeMap
 from trading_lab.agents.sniper.shared_execution import SniperStatus
@@ -18,6 +19,8 @@ from trading_lab.pipeline.paper_agents import (
     run_symbol_paper_tick,
 )
 from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
+
+ET = ZoneInfo("America/New_York")
 
 
 def test_resolve_sniper_unknown_cap_is_speculative():
@@ -222,6 +225,10 @@ def test_run_symbol_routes_speculative_and_defers_swing(tmp_path, monkeypatch):
             return_value=sniper_decision,
         ),
         patch("trading_lab.pipeline.paper_agents.swing_power_hour", return_value=False),
+        patch(
+            "trading_lab.pipeline.paper_agents.now_et",
+            return_value=datetime(2026, 7, 15, 10, 30, tzinfo=ET),
+        ),
         patch("trading_lab.pipeline.swing_tick.resolve_market_data", return_value=md),
         patch("trading_lab.pipeline.swing_tick.AlpacaPaperBroker", return_value=broker),
         patch(

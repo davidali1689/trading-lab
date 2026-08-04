@@ -58,6 +58,8 @@ def test_build_daily_watchlist_ranks_and_filters() -> None:
     screener.asset.side_effect = lambda sym: (
         _asset(sym, exchange="OTC") if sym == "OTCY" else _asset(sym)
     )
+    # most_actives rows carry no price — resolved via latest trade
+    screener.last_trade_price.side_effect = lambda sym: Decimal("25")
 
     doc = build_daily_watchlist(screener=screener, size=12, verify_assets=True)
 
@@ -71,6 +73,31 @@ def test_build_daily_watchlist_ranks_and_filters() -> None:
     assert "AAPL" not in doc.symbols
     assert "MSFT" not in doc.symbols
     assert "SPY" not in doc.symbols
+
+
+def test_null_price_active_resolved_below_floor_rejected() -> None:
+    """2026-08-04 hole: null screener price must not bypass the $5 floor."""
+    screener = MagicMock()
+    screener.most_actives.return_value = [
+        _row("ENSC", source="most_actives", price=None, volume="122048515"),
+        _row("UPC", source="most_actives", price=None, volume="90000000"),
+        _row("NOPE", source="most_actives", price=None, volume="80000000"),
+    ]
+    screener.movers.return_value = []
+    screener.asset.side_effect = lambda sym: _asset(sym)
+    screener.last_trade_price.side_effect = lambda sym: {
+        "ENSC": Decimal("0.43"),  # sub-$1 → reject
+        "UPC": Decimal("6.48"),  # above floor → keep
+        "NOPE": None,  # unresolvable → fail closed
+    }[sym]
+
+    doc = build_daily_watchlist(screener=screener, size=12, verify_assets=True)
+
+    assert "ENSC" not in doc.symbols
+    assert "NOPE" not in doc.symbols
+    assert "UPC" in doc.symbols
+    upc = next(c for c in doc.candidates if c.symbol == "UPC")
+    assert upc.price == "6.48"
 
 
 def test_build_never_hardcodes_on_failure() -> None:

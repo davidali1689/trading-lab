@@ -116,6 +116,27 @@ class AlpacaScreener:
                 )
         return rows
 
+    def last_trade_price(self, symbol: str, *, feed: str = "iex") -> Decimal | None:
+        """Latest trade price; used when screener rows carry no price (most_actives)."""
+        params = urllib.parse.urlencode({"feed": feed})
+        url = (
+            f"{self.data_url}/v2/stocks/"
+            f"{urllib.parse.quote(symbol.upper())}/trades/latest?{params}"
+        )
+        try:
+            payload = self._get_json(url)
+        except RuntimeError:
+            return None
+        trade = payload.get("trade") or {}
+        px = trade.get("p")
+        if px in (None, ""):
+            return None
+        try:
+            price = Decimal(str(px))
+        except Exception:  # noqa: BLE001
+            return None
+        return price if price > 0 else None
+
     def asset(self, symbol: str) -> AssetMeta | None:
         url = f"{self.trade_url}/v2/assets/{urllib.parse.quote(symbol.upper())}"
         try:
