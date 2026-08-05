@@ -17,6 +17,7 @@ infra/.terraform/
 infra/*.tfstate*
 infra/crash.log
 infra/.terraform.lock.hcl
+infra/tfplan
 
 # OS
 .DS_Store
