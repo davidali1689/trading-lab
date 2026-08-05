@@ -30,6 +30,7 @@ class AssetMeta:
     asset_class: str
     exchange: str
     fractionable: bool = False
+    name: str = ""
 
 
 class AlpacaScreener:
@@ -149,4 +150,5 @@ class AlpacaScreener:
             asset_class=str(payload.get("class", payload.get("asset_class", ""))),
             exchange=str(payload.get("exchange", "")),
             fractionable=bool(payload.get("fractionable", False)),
+            name=str(payload.get("name") or ""),
         )

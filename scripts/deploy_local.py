@@ -4,15 +4,14 @@ Usage (from repo root):
 
     python scripts/deploy_local.py            # CI + tofu plan (no changes)
     python scripts/deploy_local.py --apply    # CI + plan + tofu apply
-    python scripts/deploy_local.py --build    # docker build+push new image first
+    python scripts/deploy_local.py --build    # CodeBuild image then tofu
     python scripts/deploy_local.py --skip-ci  # infra-only: skip lint/tests
 
-Flow mirrors the deleted deploy.yml: ruff + pytest → (optional image build)
-→ tofu fmt/init/validate/plan → (optional) apply → /health smoke.
+Flow: ruff + pytest → (optional CodeBuild image) → tofu fmt/init/validate/plan
+→ (optional) apply → /health smoke.
 
-Image build needs local Docker. Without it, infra deploys reuse the current
-ECR image tag (resolved automatically), which is right for infra-only patches.
-Code deploys require --build (or push an image another way and pass --image-tag).
+Image builds use AWS CodeBuild (no local Docker). Infra-only deploys reuse the
+current ECR tag. Code deploys require --build (or pass --image-tag).
 """
 
 from __future__ import annotations
@@ -20,10 +19,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
+import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,29 +69,36 @@ def current_ecr_tag() -> str | None:
 
 
 def build_and_push() -> str:
-    if shutil.which("docker") is None:
-        print("ERROR: docker not on PATH. Infra-only deploys work without it; "
-              "code deploys need Docker (or push an image and use --image-tag).")
+    """Build+push via CodeBuild (scripts/build_image_codebuild.ps1). No local Docker."""
+    script = ROOT / "scripts" / "build_image_codebuild.ps1"
+    print("\n== Image build via CodeBuild (no local Docker) ==")
+    out = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        shell=False,
+    )
+    # PowerShell/aws often leak "File association…" on stderr; print stdout for progress.
+    if out.stdout:
+        print(out.stdout)
+    if out.returncode != 0:
+        if out.stderr:
+            print(out.stderr)
+        print(f"FAILED ({out.returncode}): CodeBuild image build")
+        sys.exit(out.returncode)
+    match = re.search(r"^IMAGE_TAG=(.+)$", out.stdout, re.MULTILINE)
+    if not match:
+        print("ERROR: build_image_codebuild.ps1 did not emit IMAGE_TAG=...")
         sys.exit(1)
-    tag = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    registry = ecr_registry()
-    image = f"{registry}/{APP}:{tag}"
-    print(f"\n== Image build+push: {image} ==")
-    run(["aws", "ecr", "get-login-password", "--region", REGION], capture=True)
-    login = subprocess.run(
-        ["aws", "ecr", "get-login-password", "--region", REGION],
-        capture_output=True, text=True, shell=(os.name == "nt"),
-    )
-    pw = subprocess.run(
-        ["docker", "login", "--username", "AWS", "--password-stdin", registry],
-        input=login.stdout, text=True, shell=(os.name == "nt"),
-    )
-    if pw.returncode != 0:
-        print("FAILED: docker login")
-        sys.exit(pw.returncode)
-    run(["docker", "build", "-t", image, "."])
-    run(["docker", "push", image])
-    return tag
+    return match.group(1).strip()
 
 
 def tofu(args: list[str], *, capture: bool = False) -> subprocess.CompletedProcess:
@@ -105,7 +110,7 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--apply", action="store_true", help="tofu apply after plan")
     p.add_argument("--destroy", action="store_true", help="tofu destroy (careful)")
-    p.add_argument("--build", action="store_true", help="docker build+push new image first")
+    p.add_argument("--build", action="store_true", help="CodeBuild image build+push first")
     p.add_argument("--image-tag", default="", help="explicit ECR tag to deploy")
     p.add_argument("--skip-ci", action="store_true", help="skip ruff/pytest")
     args = p.parse_args()

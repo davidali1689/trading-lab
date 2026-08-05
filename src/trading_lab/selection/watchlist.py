@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from trading_lab.market_data.alpaca_screener import AlpacaScreener, ScreenerRow
+from trading_lab.selection.universe_gates import day_gain_too_extended, is_disallowed_product
 
 logger = logging.getLogger("trading_lab.selection.watchlist")
 
@@ -156,12 +157,17 @@ def _last_trade_price(client: Any, symbol: str) -> Decimal | None:
 def _passes_cheap_filters(row: ScreenerRow, *, price: Decimal | None = None) -> tuple[bool, str]:
     if not _looks_like_common_equity(row.symbol):
         return False, "not_common_equity_ticker"
+    if is_disallowed_product(row.symbol):
+        return False, "disallowed_product"
     px = price if price is not None else row.price
     # Fail closed: unknown price must not bypass the penny floor (2026-08-04: ENSC/ZBAO).
     if px is None:
         return False, "price_unresolved"
     if px < MIN_PRICE:
         return False, f"price<{MIN_PRICE}"
+    # 2026-08-05: already-extended day gainers (AMIX +434%) are chase, not edge.
+    if day_gain_too_extended(row.percent_change):
+        return False, "day_gain_extended"
     # Most-actives often lack price; volume floor when present
     if row.volume is not None and row.volume < MIN_ACTIVE_VOLUME and row.source == "most_actives":
         return False, "volume_too_low"
@@ -177,6 +183,8 @@ def _passes_asset(meta: Any) -> tuple[bool, str]:
         return False, f"asset_class={meta.asset_class}"
     if meta.exchange.upper() in OTC_EXCHANGES:
         return False, "otc"
+    if is_disallowed_product(meta.symbol, meta=meta):
+        return False, "disallowed_product"
     return True, "ok"
 
 

@@ -33,13 +33,20 @@ def _row(
     )
 
 
-def _asset(symbol: str, *, tradable: bool = True, exchange: str = "NASDAQ") -> AssetMeta:
+def _asset(
+    symbol: str,
+    *,
+    tradable: bool = True,
+    exchange: str = "NASDAQ",
+    name: str = "",
+) -> AssetMeta:
     return AssetMeta(
         symbol=symbol,
         tradable=tradable,
         status="active",
         asset_class="us_equity",
         exchange=exchange,
+        name=name or f"{symbol} Common Stock",
     )
 
 
@@ -98,6 +105,31 @@ def test_null_price_active_resolved_below_floor_rejected() -> None:
     assert "UPC" in doc.symbols
     upc = next(c for c in doc.candidates if c.symbol == "UPC")
     assert upc.price == "6.48"
+
+
+def test_extended_day_gainer_and_leveraged_etf_rejected() -> None:
+    """2026-08-05: AMIX-class chase and PLTU leveraged products stay off watchlist."""
+    screener = MagicMock()
+    screener.most_actives.return_value = []
+    screener.movers.return_value = [
+        _row("AMIX", source="gainer", price="19.5", percent_change="434.25"),
+        _row("PLTU", source="gainer", price="44.82", percent_change="57.87"),
+        _row("OKAY", source="gainer", price="25", percent_change="12"),
+    ]
+    screener.asset.side_effect = lambda sym: _asset(
+        sym,
+        name=(
+            "Direxion Daily PLTR Bull 2X Shares"
+            if sym == "PLTU"
+            else f"{sym} Common Stock"
+        ),
+    )
+
+    doc = build_daily_watchlist(screener=screener, size=12, verify_assets=True)
+
+    assert "AMIX" not in doc.symbols
+    assert "PLTU" not in doc.symbols
+    assert "OKAY" in doc.symbols
 
 
 def test_build_never_hardcodes_on_failure() -> None:

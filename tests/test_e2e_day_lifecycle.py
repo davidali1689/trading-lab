@@ -344,3 +344,110 @@ def test_coach_converse_retries_with_us_prefix(monkeypatch: pytest.MonkeyPatch) 
     client = CoachClient(model_id="moonshot.kimi-k2-thinking", mock=False)
     assert client.analyze("sys", "user") == "ok"
     assert calls == ["moonshot.kimi-k2-thinking", "us.moonshot.kimi-k2-thinking"]
+
+
+def test_disallowed_leveraged_product_blocked(tmp_path: Path) -> None:
+    journal = str(tmp_path / "journal.sqlite")
+    broker = FakeBroker(legs=[])
+    with (
+        patch.object(paper_agents, "resolve_market_data", return_value=DayMarketData()),
+        patch.object(paper_agents, "now_et", return_value=FIXED_NOW_ET),
+    ):
+        out = run_sniper_paper_tick(
+            symbol="PLTU",
+            journal_path=journal,
+            agent_id="speculative_sniper",
+            market_cap_usd=None,
+            broker=broker,
+        )
+    assert out["status"] == "SKIP"
+    assert out["detail"] == "disallowed_product"
+
+
+def test_day_gain_extended_blocks_speculative(tmp_path: Path) -> None:
+    from trading_lab.selection.watchlist import WatchlistCandidate, WatchlistDocument
+
+    journal = str(tmp_path / "journal.sqlite")
+    broker = FakeBroker(legs=[])
+    doc = WatchlistDocument(
+        symbols=["AMIX"],
+        candidates=[
+            WatchlistCandidate(
+                symbol="AMIX",
+                price="19.5",
+                percent_change="434.25",
+                reason="screener_pass",
+            )
+        ],
+        source="s3",
+        built_at="2026-08-05T12:00:00+00:00",
+        size=1,
+    )
+    with (
+        patch.object(paper_agents, "resolve_market_data", return_value=DayMarketData()),
+        patch.object(paper_agents, "now_et", return_value=FIXED_NOW_ET),
+        patch.object(paper_agents, "get_watchlist", return_value=doc),
+    ):
+        out = run_sniper_paper_tick(
+            symbol="AMIX",
+            journal_path=journal,
+            agent_id="speculative_sniper",
+            market_cap_usd=None,
+            broker=broker,
+        )
+    assert out["status"] == "SKIP"
+    assert out["detail"] == "day_gain_extended"
+
+
+def test_max_open_large_cap_blocks_third(tmp_path: Path) -> None:
+    from trading_lab.schemas.hold import HoldPlan, StrategyHorizon
+    from trading_lab.schemas.trades import ExitReason, Side, TradeRecord
+
+    journal_path = tmp_path / "journal.sqlite"
+    j = SqliteJournal(journal_path)
+    when = datetime(2026, 8, 5, 14, 0, tzinfo=UTC)
+    for sym in ("NVDA", "INTC"):
+        j.write_trade(
+            TradeRecord(
+                trade_id=uuid4(),
+                run_id=uuid4(),
+                found_by_agent="large_cap_sniper",
+                symbol=sym,
+                side=Side.LONG,
+                mode=RunMode.PAPER,
+                setup_tags=["large_cap_sniper"],
+                entry_ts=when,
+                entry_px=Decimal("100"),
+                qty=Decimal("10"),
+                stop_px=Decimal("98"),
+                target_px=Decimal("104"),
+                hold_plan=HoldPlan(
+                    horizon=StrategyHorizon.INTRADAY,
+                    min_hold_sessions=0,
+                    typical_hold_sessions=0,
+                    max_hold_sessions=0,
+                    summary="intraday",
+                ),
+                exit_ts=when,
+                exit_px=Decimal("100"),
+                exit_reason=ExitReason.MANUAL,
+                bars_held=0,
+                fill_model="alpaca_paper_bracket",
+                meta={"open": True},
+            )
+        )
+    broker = FakeBroker(legs=[])
+    with (
+        patch.object(paper_agents, "resolve_market_data", return_value=DayMarketData()),
+        patch.object(paper_agents, "now_et", return_value=FIXED_NOW_ET),
+        patch.object(paper_agents, "_paper_has_catalyst", return_value=True),
+    ):
+        out = run_sniper_paper_tick(
+            symbol="PLTR",
+            journal_path=str(journal_path),
+            agent_id="large_cap_sniper",
+            market_cap_usd=Decimal("3000000000000"),
+            broker=broker,
+        )
+    assert out["status"] == "SKIP"
+    assert out["detail"] == "max_open_large_cap"

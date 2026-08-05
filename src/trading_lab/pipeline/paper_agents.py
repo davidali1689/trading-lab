@@ -19,6 +19,7 @@ from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
+from trading_lab.journal.open_trades import load_open_plans
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
 from trading_lab.market_data.types import BarRequest, SessionContext
@@ -32,6 +33,12 @@ from trading_lab.pipeline.swing_tick import run_swing_paper_tick
 from trading_lab.schedule import swing_power_hour
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode, SkipReason
+from trading_lab.selection.universe_gates import (
+    day_gain_too_extended,
+    is_disallowed_product,
+    max_open_large_cap,
+)
+from trading_lab.selection.watchlist import get_watchlist
 
 logger = logging.getLogger("trading_lab.paper_agents")
 
@@ -154,6 +161,22 @@ def _spec_last_entry_et() -> time:
         return time(15, 0)
 
 
+def _watchlist_day_change(symbol: str) -> Decimal | None:
+    """Screener percent_change from latest watchlist candidate, if present."""
+    try:
+        doc = get_watchlist(refresh=False)
+    except Exception:  # noqa: BLE001
+        return None
+    sym = symbol.upper()
+    for cand in doc.candidates:
+        if cand.symbol.upper() == sym and cand.percent_change not in (None, ""):
+            try:
+                return Decimal(str(cand.percent_change))
+            except Exception:  # noqa: BLE001
+                return None
+    return None
+
+
 def run_sniper_paper_tick(
     *,
     symbol: str,
@@ -271,6 +294,77 @@ def run_sniper_paper_tick(
             "orders": 0,
             "skips": 1,
         }
+
+    # 2026-08-05: block leveraged / ETF products that slipped past watchlist.
+    if is_disallowed_product(symbol):
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.MARKET_GUARDRAIL,
+            detail="disallowed_product",
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "SKIP",
+            "found_by_agent": agent_id,
+            "detail": "disallowed_product",
+            "orders": 0,
+            "skips": 1,
+        }
+
+    # 2026-08-05: speculative — no chase of already-extended day gainers (AMIX).
+    if agent_id == SPECULATIVE_SNIPER.agent_id:
+        pct = _watchlist_day_change(symbol)
+        if day_gain_too_extended(pct):
+            write_skip(
+                journal,
+                run_id=run_id,
+                agent=agent_id,
+                symbol=symbol,
+                ts=bars[-1].ts,
+                skip_reason=SkipReason.MARKET_GUARDRAIL,
+                detail=f"day_gain_extended pct={pct}",
+            )
+            return {
+                "symbol": symbol,
+                "mode": "paper",
+                "status": "SKIP",
+                "found_by_agent": agent_id,
+                "detail": "day_gain_extended",
+                "orders": 0,
+                "skips": 1,
+            }
+
+    # 2026-08-05: limit concurrent large_cap opens (correlated morning cluster).
+    if agent_id == LARGE_CAP_SNIPER.agent_id:
+        open_large = sum(
+            1
+            for plan in load_open_plans(journal_path).values()
+            if plan.get("found_by_agent") == LARGE_CAP_SNIPER.agent_id
+        )
+        if open_large >= max_open_large_cap():
+            write_skip(
+                journal,
+                run_id=run_id,
+                agent=agent_id,
+                symbol=symbol,
+                ts=bars[-1].ts,
+                skip_reason=SkipReason.MAX_POSITIONS,
+                detail=f"max_open_large_cap open={open_large}",
+            )
+            return {
+                "symbol": symbol,
+                "mode": "paper",
+                "status": "SKIP",
+                "found_by_agent": agent_id,
+                "detail": "max_open_large_cap",
+                "orders": 0,
+                "skips": 1,
+            }
 
     bar = bars[-1]
     spy_aligned, qqq_aligned = _index_alignment(md, end)
