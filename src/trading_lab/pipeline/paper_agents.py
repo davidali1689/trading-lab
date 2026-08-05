@@ -19,6 +19,7 @@ from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
+from trading_lab.execution.budget import agent_slice_notional
 from trading_lab.journal.open_trades import load_open_plans
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
@@ -33,7 +34,6 @@ from trading_lab.pipeline.swing_tick import run_swing_paper_tick
 from trading_lab.schedule import swing_power_hour
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode, SkipReason
-from trading_lab.execution.budget import agent_slice_notional
 from trading_lab.selection.universe_gates import (
     is_disallowed_product,
     max_open_large_cap,
