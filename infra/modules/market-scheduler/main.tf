@@ -15,6 +15,12 @@ variable "schedule_timezone" {
   default = "America/New_York"
 }
 
+variable "alarm_actions" {
+  description = "SNS topic ARNs for the premarket-errors alarm. Empty = alarm has no actions."
+  type        = list(string)
+  default     = []
+}
+
 variable "common_tags" {
   type    = map(string)
   default = {}
@@ -132,6 +138,7 @@ resource "aws_cloudwatch_metric_alarm" "premarket_errors" {
   threshold           = 1
   treat_missing_data  = "notBreaching"
   alarm_description   = "Premarket/worker Lambda errors — check 08:00 ET wake"
+  alarm_actions       = var.alarm_actions
 
   dimensions = {
     FunctionName = var.lambda_function_name

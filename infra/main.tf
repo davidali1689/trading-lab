@@ -102,6 +102,12 @@ variable "kill_switch" {
   default = "0"
 }
 
+variable "alert_email" {
+  description = "SNS email subscription for CloudWatch error alerts. Empty = topic only, no subscription."
+  type        = string
+  default     = "davidali1689@gmail.com"
+}
+
 module "journal_bucket" {
   source      = "./modules/journal-bucket"
   name_prefix = var.name_prefix
@@ -158,6 +164,16 @@ module "lambda_worker" {
   }
 }
 
+module "alerts" {
+  source = "./modules/cloudwatch-alerts"
+  count  = local.image_uri != "" ? 1 : 0
+
+  name_prefix      = var.name_prefix
+  alert_email      = var.alert_email
+  lambda_functions = { worker = module.lambda_worker[0].lambda_function_name }
+  common_tags      = local.common_tags
+}
+
 module "market_scheduler" {
   source = "./modules/market-scheduler"
   count  = local.image_uri != "" ? 1 : 0
@@ -166,6 +182,7 @@ module "market_scheduler" {
   lambda_function_arn  = module.lambda_worker[0].lambda_function_arn
   lambda_function_name = module.lambda_worker[0].lambda_function_name
   schedule_timezone    = "America/New_York"
+  alarm_actions        = [module.alerts[0].sns_topic_arn]
   common_tags          = local.common_tags
 }
 
@@ -196,6 +213,14 @@ output "schedule_names" {
 
 output "premarket_alarm" {
   value = try(module.market_scheduler[0].premarket_alarm_name, null)
+}
+
+output "alert_topic_arn" {
+  value = try(module.alerts[0].sns_topic_arn, null)
+}
+
+output "alert_alarms" {
+  value = try(module.alerts[0].alarm_names, [])
 }
 
 output "auto_run_note" {

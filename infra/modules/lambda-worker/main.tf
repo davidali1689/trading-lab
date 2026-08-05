@@ -140,7 +140,7 @@ resource "aws_iam_role_policy" "bedrock_coach" {
 
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.lambda_name}"
-  retention_in_days = 14
+  retention_in_days = 30
   tags              = var.common_tags
 }
 
