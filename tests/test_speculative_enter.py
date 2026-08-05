@@ -48,6 +48,37 @@ def test_paper_speculative_enters_with_catalyst_float_rsi():
     assert d.trade_map is not None
 
 
+def test_paper_speculative_rejects_soft_rvol():
+    """Paper RVOL floor matches live (5.0) — no softer 4.0 chase path."""
+    bars = _bars()
+    ctx = SessionContext(
+        symbol="ELVA",
+        bar=bars[-1],
+        bars=bars,
+        market_cap_usd=Decimal("500000000"),
+        has_catalyst=True,
+        rvol=Decimal("4.5"),
+    )
+    d = evaluate_speculative_sniper(ctx, mode=RunMode.PAPER)
+    assert d.status != SniperStatus.ENTER
+    assert "rvol" in (d.reason or "")
+
+
+def test_live_speculative_requires_harder_rvol():
+    bars = _bars()
+    ctx = SessionContext(
+        symbol="ELVA",
+        bar=bars[-1],
+        bars=bars,
+        market_cap_usd=Decimal("500000000"),
+        has_catalyst=True,
+        rvol=Decimal("5.5"),
+    )
+    d = evaluate_speculative_sniper(ctx, mode=RunMode.LIVE)
+    assert d.status != SniperStatus.ENTER
+    assert "rvol" in (d.reason or "")
+
+
 def test_live_speculative_requires_catalyst():
     bars = _bars()
     ctx = SessionContext(

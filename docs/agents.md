@@ -82,7 +82,8 @@ Implementation: `trading_lab.execution.budget` via `make_risk_gate` (paper) and
 | Cap band | &lt; $2B (screener default when cap unknown) |
 | Bars | 1Min |
 | Target / stop | ≥8% aim 12% / 3–5% (defaults **10%** / **4%**) |
-| Key gates | RVOL &gt; 5 (4 paper); float &lt; 20M; RSI &lt; 80; clear catalyst |
+| Size | **Half-slice** = equity/10 (~$9–10k on $100k) |
+| Key gates | RVOL ≥ 6 (paper ≥5); float &lt; 20M; RSI &lt; 80; clear catalyst; day-gain &lt; **25%** |
 | Hold | Flat by EOD |
 | Book ideas | Only trade the clear pitch; no catalyst → SKIP |
 

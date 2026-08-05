@@ -396,7 +396,43 @@ def test_day_gain_extended_blocks_speculative(tmp_path: Path) -> None:
             broker=broker,
         )
     assert out["status"] == "SKIP"
-    assert out["detail"] == "day_gain_extended"
+    assert out["detail"] == "spec_day_gain_extended"
+
+
+def test_spec_day_gain_blocks_below_universe_ceiling(tmp_path: Path) -> None:
+    """30% day-gain passes book-wide 40% but fails speculative 25% ceiling."""
+    from trading_lab.selection.watchlist import WatchlistCandidate, WatchlistDocument
+
+    journal = str(tmp_path / "journal.sqlite")
+    broker = FakeBroker(legs=[])
+    doc = WatchlistDocument(
+        symbols=["ELVA"],
+        candidates=[
+            WatchlistCandidate(
+                symbol="ELVA",
+                price="12.0",
+                percent_change="30.0",
+                reason="screener_pass",
+            )
+        ],
+        source="s3",
+        built_at="2026-08-05T12:00:00+00:00",
+        size=1,
+    )
+    with (
+        patch.object(paper_agents, "resolve_market_data", return_value=DayMarketData()),
+        patch.object(paper_agents, "now_et", return_value=FIXED_NOW_ET),
+        patch.object(paper_agents, "get_watchlist", return_value=doc),
+    ):
+        out = run_sniper_paper_tick(
+            symbol="ELVA",
+            journal_path=journal,
+            agent_id="speculative_sniper",
+            market_cap_usd=Decimal("500000000"),
+            broker=broker,
+        )
+    assert out["status"] == "SKIP"
+    assert out["detail"] == "spec_day_gain_extended"
 
 
 def test_max_open_large_cap_blocks_third(tmp_path: Path) -> None:

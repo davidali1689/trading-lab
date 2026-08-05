@@ -1,6 +1,8 @@
 from trading_lab.execution.budget import (
     ACTIVE_SLICES,
     BUDGET_SLICES,
+    SPECULATIVE_BUDGET_SLICES,
+    agent_slice_notional,
     risk_config_from_equity,
     slice_notional,
 )
@@ -16,6 +18,8 @@ __all__ = [
     "RiskGate",
     "RiskGateConfig",
     "RiskGateState",
+    "SPECULATIVE_BUDGET_SLICES",
+    "agent_slice_notional",
     "risk_config_from_equity",
     "slice_notional",
 ]

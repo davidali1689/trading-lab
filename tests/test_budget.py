@@ -7,6 +7,8 @@ from trading_lab.broker.types import BrokerAccount
 from trading_lab.execution.budget import (
     ACTIVE_SLICES,
     BUDGET_SLICES,
+    SPECULATIVE_BUDGET_SLICES,
+    agent_slice_notional,
     risk_config_from_equity,
     slice_notional,
 )
@@ -16,6 +18,15 @@ from trading_lab.pipeline.paper_submit import make_risk_gate
 def test_slice_notional_is_one_fifth():
     assert slice_notional(Decimal("100000")) == Decimal("20000.00")
     assert slice_notional(Decimal("105000")) == Decimal("21000.00")
+
+
+def test_speculative_slice_is_half_of_standard():
+    """Speculative sizes to equity/10 (half of the standard equity/5 slice)."""
+    assert SPECULATIVE_BUDGET_SLICES == 10
+    assert agent_slice_notional(Decimal("100000"), "speculative_sniper") == Decimal("10000.00")
+    assert agent_slice_notional(Decimal("100000"), "large_cap_sniper") == Decimal("20000.00")
+    assert agent_slice_notional(Decimal("100000"), "mid_cap_sniper") == Decimal("20000.00")
+    assert agent_slice_notional(Decimal("100000"), "swing_momentum") == Decimal("20000.00")
 
 
 def test_budget_constants():

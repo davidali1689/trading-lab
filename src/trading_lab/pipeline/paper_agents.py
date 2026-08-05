@@ -33,10 +33,11 @@ from trading_lab.pipeline.swing_tick import run_swing_paper_tick
 from trading_lab.schedule import swing_power_hour
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode, SkipReason
+from trading_lab.execution.budget import agent_slice_notional
 from trading_lab.selection.universe_gates import (
-    day_gain_too_extended,
     is_disallowed_product,
     max_open_large_cap,
+    speculative_day_gain_too_extended,
 )
 from trading_lab.selection.watchlist import get_watchlist
 
@@ -226,6 +227,9 @@ def run_sniper_paper_tick(
     risk, equity, use_notional = make_risk_gate(
         broker, journal_path=journal_path, notional_usd=notional_usd
     )
+    # Speculative: half-slice (equity/10) unless caller overrides notional_usd.
+    if notional_usd is None:
+        use_notional = agent_slice_notional(equity, agent_id)
 
     if broker.has_open_position(symbol):
         write_skip(
@@ -316,10 +320,10 @@ def run_sniper_paper_tick(
             "skips": 1,
         }
 
-    # 2026-08-05: speculative — no chase of already-extended day gainers (AMIX).
+    # Speculative chase guard — tighter than book-wide 40% (default 25%).
     if agent_id == SPECULATIVE_SNIPER.agent_id:
         pct = _watchlist_day_change(symbol)
-        if day_gain_too_extended(pct):
+        if speculative_day_gain_too_extended(pct):
             write_skip(
                 journal,
                 run_id=run_id,
@@ -327,14 +331,14 @@ def run_sniper_paper_tick(
                 symbol=symbol,
                 ts=bars[-1].ts,
                 skip_reason=SkipReason.MARKET_GUARDRAIL,
-                detail=f"day_gain_extended pct={pct}",
+                detail=f"spec_day_gain_extended pct={pct}",
             )
             return {
                 "symbol": symbol,
                 "mode": "paper",
                 "status": "SKIP",
                 "found_by_agent": agent_id,
-                "detail": "day_gain_extended",
+                "detail": "spec_day_gain_extended",
                 "orders": 0,
                 "skips": 1,
             }

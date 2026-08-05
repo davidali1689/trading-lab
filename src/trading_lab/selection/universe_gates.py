@@ -60,6 +60,15 @@ def max_day_gain_pct() -> Decimal:
         return Decimal("40")
 
 
+def max_speculative_day_gain_pct() -> Decimal:
+    """Tighter chase ceiling for speculative only (book-wide gate stays higher)."""
+    raw = os.environ.get("MAX_SPECULATIVE_DAY_GAIN_PCT", "25")
+    try:
+        return Decimal(raw)
+    except Exception:  # noqa: BLE001
+        return Decimal("25")
+
+
 def max_open_large_cap() -> int:
     try:
         return max(1, int(os.environ.get("MAX_OPEN_LARGE_CAP", "2")))
@@ -72,6 +81,13 @@ def day_gain_too_extended(percent_change: Decimal | None) -> bool:
     if percent_change is None:
         return False
     return percent_change >= max_day_gain_pct()
+
+
+def speculative_day_gain_too_extended(percent_change: Decimal | None) -> bool:
+    """Speculative-only chase gate — stricter than the book-wide day-gain ceiling."""
+    if percent_change is None:
+        return False
+    return percent_change >= max_speculative_day_gain_pct()
 
 
 def is_disallowed_product(symbol: str, *, meta: Any | None = None) -> bool:

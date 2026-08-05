@@ -21,6 +21,21 @@ def test_day_gain_too_extended_defaults() -> None:
     assert day_gain_too_extended(None) is False
 
 
+def test_speculative_day_gain_ceiling_tighter_than_universe() -> None:
+    from trading_lab.selection.universe_gates import (
+        max_speculative_day_gain_pct,
+        speculative_day_gain_too_extended,
+    )
+
+    assert max_speculative_day_gain_pct() == Decimal("25")
+    # 25–39% would still pass the book-wide 40% gate but not speculative.
+    assert day_gain_too_extended(Decimal("30")) is False
+    assert speculative_day_gain_too_extended(Decimal("30")) is True
+    assert speculative_day_gain_too_extended(Decimal("25")) is True
+    assert speculative_day_gain_too_extended(Decimal("24.9")) is False
+    assert speculative_day_gain_too_extended(None) is False
+
+
 def test_leveraged_etf_symbol_denylist() -> None:
     assert is_disallowed_product("PLTU") is True
     assert is_disallowed_product("PLTG") is True

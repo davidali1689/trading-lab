@@ -21,9 +21,9 @@ class SpeculativeSniperSpec(BaseModel):
     default_profit_target_pct: Decimal = Decimal("10.0")
     default_stop_loss_pct: Decimal = Decimal("4.0")
     bar_timeframe: str = "1Min"
-    min_rvol: Decimal = Decimal("5.0")
-    # Paper: slightly softer RVOL so micro-cap screener names can ENTER for eval.
-    min_rvol_paper: Decimal = Decimal("4.0")
+    min_rvol: Decimal = Decimal("6.0")
+    # Paper: same floor as prior live (no softer 4.0 chase path).
+    min_rvol_paper: Decimal = Decimal("5.0")
     max_float_shares: Decimal = Decimal("20000000")
     max_rsi: Decimal = Decimal("80")
     require_catalyst: bool = True
@@ -41,10 +41,11 @@ class SpeculativeSniperSpec(BaseModel):
     notes: list[str] = Field(
         default_factory=lambda: [
             "Intraday speculative <$2B — only with clear catalyst + volume expansion.",
-            "Gates: RVOL>5; float<20M; RSI<80; catalyst (relaxed paper when unknown).",
+            "Gates: RVOL>6 (paper ≥5); float<20M; RSI<80; catalyst (relaxed paper when unknown).",
             "Target ≥8% (aim 12%); stop 3–5%. Flat by EOD.",
             "Never force a trade — no catalyst/volume → SKIP (selectivity).",
-            "Budget: sizes to 1/5 equity; book max 3 positions — small-account risk.",
+            "Budget: sizes to 1/10 equity (half-slice); book max 3 positions — small-account risk.",
+            "Chase guard: skip when watchlist day-gain ≥25% (tighter than book-wide 40%).",
             "Uses sniper shared_execution (scale-out, 15m cool-off).",
             "Attribution: found_by_agent=speculative_sniper.",
         ]
