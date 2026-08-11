@@ -26,9 +26,12 @@ FAILURES: list[str] = []
 
 
 def run(cmd: list[str]) -> tuple[int, str]:
+    # shell=True routed through cmd.exe, where pip-installed aws.CMD dies on the
+    # .py file association. Resolve the full path and spawn directly instead.
+    exe = shutil.which(cmd[0])
+    full = [exe or cmd[0], *cmd[1:]]
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=60,
-                             shell=(os.name == "nt"))
+        out = subprocess.run(full, capture_output=True, text=True, timeout=60)  # noqa: S603
         text = out.stdout.strip()
         if out.returncode != 0 and out.stderr.strip():
             text = f"{text}\n{out.stderr.strip()}".strip()

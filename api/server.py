@@ -25,7 +25,7 @@ from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
 from trading_lab.pipeline.exit_reassess import reassess_open_exits
 from trading_lab.pipeline.paper_agents import run_symbol_paper_tick
-from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress
+from trading_lab.pipeline.swing_tick import evaluate_swing_with_congress, run_swing_paper_tick
 from trading_lab.pipeline.vertical_slice import run_vertical_slice
 from trading_lab.schedule import (
     entries_enabled,
@@ -40,6 +40,11 @@ from trading_lab.schedule import (
 )
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode
+from trading_lab.selection.swing_watchlist import (
+    build_swing_watchlist,
+    get_swing_watchlist,
+    save_swing_watchlist,
+)
 from trading_lab.selection.watchlist import (
     build_daily_watchlist,
     get_watchlist,
@@ -168,6 +173,8 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         Path(JOURNAL_PATH).parent.mkdir(parents=True, exist_ok=True)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
+        swl = build_swing_watchlist()
+        persist_swl = save_swing_watchlist(swl)
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         exits: list[dict[str, Any]] = []
         if has_alpaca_keys():
@@ -175,6 +182,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             persist_journal_to_s3(JOURNAL_PATH)
         detail = (
             f"08:00 prep watchlist={wl.symbols} source={wl.source} "
+            f"swing_watchlist={swl.symbols} "
             f"entries_enabled={entries_enabled()}; no ENTERs until RTH; "
             f"scan={wl.detail}; exit_reassess={len(exits)}"
         )
@@ -189,6 +197,8 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 {
                     "watchlist": wl.to_dict(),
                     "persist": persist_wl,
+                    "swing_watchlist": swl.to_dict(),
+                    "swing_persist": persist_swl,
                     "hydrate": hydrate,
                     "exit_reassess": exits,
                 }
@@ -271,6 +281,15 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                         ),
                     }
                 )
+        # Swing universe: daily-momentum candidates beyond the intraday list.
+        use_mock = os.environ.get("USE_MOCK_BARS", "true").lower() in {"1", "true", "yes"}
+        if not body.symbol and _mode() == RunMode.PAPER and has_alpaca_keys() and not use_mock:
+            swing_extra = [s for s in get_swing_watchlist().symbols if s not in symbols]
+            for sym in swing_extra:
+                summary = run_swing_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
+                summary["swing_universe"] = True
+                _emit_from_summary(summary)
+                results.append(summary)
         persist = persist_journal_to_s3(JOURNAL_PATH)
         results.append({"hydrate": hydrate, "persist": persist})
         return PhaseResult(
@@ -338,11 +357,15 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         persist = persist_journal_to_s3(JOURNAL_PATH)
         wl = build_daily_watchlist()
         persist_wl = save_watchlist(wl)
+        swl = build_swing_watchlist()
+        persist_swl = save_swing_watchlist(swl)
         miss = run_and_persist_miss_harvest(JOURNAL_PATH)
         next_day_notes = {
             "tomorrow_watchlist": wl.symbols,
             "watchlist": wl.to_dict(),
             "watchlist_persist": persist_wl,
+            "tomorrow_swing_watchlist": swl.symbols,
+            "swing_watchlist_persist": persist_swl,
             "focus": "dynamic candidates for next session — sniper gates at RTH",
             "no_entries_after_hours": True,
             "hydrate": hydrate,

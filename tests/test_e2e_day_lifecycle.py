@@ -254,7 +254,16 @@ def test_e2e_day_lifecycle(tmp_path: Path) -> None:
         )
     before = j.count_symbol_entries_since("UPC", "speculative_sniper", "2000-01-01")
     prune = prune_journal(journal, keep_days=3)
-    assert prune["pruned_skips"] == 5
+    # Session skips carry the fixed BAR_DAY timestamp and age past keep_days as
+    # the calendar moves — assert on the OLD rows, not an exact prune count.
+    assert prune["pruned_skips"] >= 5
+    import sqlite3
+
+    with sqlite3.connect(journal) as conn:
+        remaining_old = conn.execute(
+            "SELECT COUNT(*) FROM skips WHERE symbol = 'OLD'"
+        ).fetchone()[0]
+    assert remaining_old == 0
     assert j.count_symbol_entries_since("UPC", "speculative_sniper", "2000-01-01") == before
 
     # 7. Scorecard: bucket-C gainer with positive P&L counts as captured.

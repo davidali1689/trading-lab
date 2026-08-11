@@ -18,10 +18,12 @@ logger = logging.getLogger("trading_lab.journal.persist")
 
 
 def _skip_keep_days() -> int:
+    # 2026-08-11: 10d retention grew the sqlite to ~36MB re-uploaded every tick;
+    # 3d keeps hydrate/persist fast (dated S3 copies retain full history).
     try:
-        return max(1, int(os.environ.get("JOURNAL_SKIP_KEEP_DAYS", "10")))
+        return max(1, int(os.environ.get("JOURNAL_SKIP_KEEP_DAYS", "3")))
     except ValueError:
-        return 10
+        return 3
 
 
 def prune_journal(local_path: str | Path, *, keep_days: int | None = None) -> dict:

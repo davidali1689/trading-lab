@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import uuid4
 
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER
@@ -19,7 +20,7 @@ from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
-from trading_lab.execution.budget import agent_slice_notional
+from trading_lab.execution.budget import agent_slice_notional, cap_qty_by_risk
 from trading_lab.journal.open_trades import load_open_plans
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
@@ -162,20 +163,35 @@ def _spec_last_entry_et() -> time:
         return time(15, 0)
 
 
-def _watchlist_day_change(symbol: str) -> Decimal | None:
-    """Screener percent_change from latest watchlist candidate, if present."""
+def _watchlist_candidate(symbol: str):
+    """Latest watchlist candidate row for symbol, or None."""
     try:
         doc = get_watchlist(refresh=False)
     except Exception:  # noqa: BLE001
         return None
     sym = symbol.upper()
     for cand in doc.candidates:
-        if cand.symbol.upper() == sym and cand.percent_change not in (None, ""):
-            try:
-                return Decimal(str(cand.percent_change))
-            except Exception:  # noqa: BLE001
-                return None
+        if cand.symbol.upper() == sym:
+            return cand
     return None
+
+
+def _watchlist_day_change(symbol: str) -> Decimal | None:
+    """Screener percent_change from latest watchlist candidate, if present."""
+    cand = _watchlist_candidate(symbol)
+    if cand is None or cand.percent_change in (None, ""):
+        return None
+    try:
+        return Decimal(str(cand.percent_change))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _watchlist_asset_meta(symbol: str) -> SimpleNamespace | None:
+    """Asset name cached on the watchlist at build time — no extra API call."""
+    cand = _watchlist_candidate(symbol)
+    name = getattr(cand, "name", None) if cand is not None else None
+    return SimpleNamespace(name=name) if name else None
 
 
 def run_sniper_paper_tick(
@@ -300,7 +316,9 @@ def run_sniper_paper_tick(
         }
 
     # 2026-08-05: block leveraged / ETF products that slipped past watchlist.
-    if is_disallowed_product(symbol):
+    # 2026-08-11: also check the asset *name* cached on the watchlist — the
+    # symbol-only check misses products absent from the static list.
+    if is_disallowed_product(symbol, meta=_watchlist_asset_meta(symbol)):
         write_skip(
             journal,
             run_id=run_id,
@@ -431,6 +449,35 @@ def run_sniper_paper_tick(
             "status": "RISK_BLOCKED",
             "found_by_agent": decision.agent_id,
             "detail": "qty_unaffordable",
+            "equity": str(equity),
+            "orders": 0,
+            "skips": 1,
+        }
+    qty = cap_qty_by_risk(
+        entry_px=decision.trade_map.entry_trigger,
+        stop_px=decision.trade_map.stop_loss,
+        qty=qty,
+        equity=equity,
+    )
+    if qty < 1:
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=decision.agent_id,
+            symbol=symbol,
+            ts=bar.ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=(
+                f"per_trade_risk_cap entry={decision.trade_map.entry_trigger} "
+                f"stop={decision.trade_map.stop_loss}"
+            ),
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "RISK_BLOCKED",
+            "found_by_agent": decision.agent_id,
+            "detail": "per_trade_risk_cap",
             "equity": str(equity),
             "orders": 0,
             "skips": 1,

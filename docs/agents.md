@@ -33,6 +33,11 @@ Implementation: `trading_lab.execution.budget` via `make_risk_gate` (paper) and
 - HoldPlan required on every ENTER
 - Log every SKIP with `found_by_agent`
 - Size = one budget slice unless explicitly overridden in tests
+- **Per-trade risk cap** (2026-08-11): qty shrinks so one stop-out loses ≤
+  `MAX_TRADE_RISK_PCT` of equity (default **0.25%**; 0 disables). Post-fix
+  audit: avg stop −$495 vs avg winner +$121 — cap keeps one loser ≈ 2 winners.
+- **Product check at tick** uses the asset *name* cached on the watchlist
+  (leveraged/ETF regex), not just the static symbol list.
 
 ### Sniper family (`agents.sniper.shared_execution`)
 
@@ -99,6 +104,16 @@ Implementation: `trading_lab.execution.budget` via `make_risk_gate` (paper) and
 | Book ideas | Market filter + relative strength (O’Neil); let winners run on multi-day moves |
 
 **Submit timing:** swing evaluates every tick; **orders only in power hour** (15:30–16:00 ET) unless forced in tests.
+
+**Swing universe (2026-08-11):** swing no longer judges only the intraday
+movers list. A dedicated daily scan (`selection/swing_watchlist.py`, S3
+`watchlists/swing/`) screens a wider actives/movers slice on the gates swing
+actually uses: ≥21 daily bars, close > 8-EMA, daily RVOL ≥ `SWING_MIN_DAILY_RVOL`
+(default 1.5). Built at premarket + postmarket; extra symbols tick swing-only.
+
+**Watchlist bar coverage (2026-08-11):** symbols must show ≥
+`MIN_WATCHLIST_PREV_BARS` (default 100) 1Min bars over the prior 24h (IEX feed)
+to hold a slot — ALGS-class zero-bar names can never reach the 21-bar minimum.
 
 ---
 

@@ -17,6 +17,7 @@ from trading_lab.catalysts.congress import (
 )
 from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.eval.swing import evaluate_swing_momentum
+from trading_lab.execution.budget import cap_qty_by_risk
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
 from trading_lab.market_data.types import Bar, BarRequest, SessionContext
@@ -245,6 +246,29 @@ def run_swing_paper_tick(
             detail=f"slice_cannot_buy_1_share price={decision.trade_map.entry_trigger}",
         )
         base["status"] = "RISK_BLOCKED"
+        base["skips"] = 1
+        return base
+    qty = cap_qty_by_risk(
+        entry_px=decision.trade_map.entry_trigger,
+        stop_px=decision.trade_map.stop_loss,
+        qty=qty,
+        equity=equity,
+    )
+    if qty < 1:
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=decision.agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.RISK_BLOCKED,
+            detail=(
+                f"per_trade_risk_cap entry={decision.trade_map.entry_trigger} "
+                f"stop={decision.trade_map.stop_loss}"
+            ),
+        )
+        base["status"] = "RISK_BLOCKED"
+        base["detail"] = "per_trade_risk_cap"
         base["skips"] = 1
         return base
     intent = decision.to_trade_intent(qty)

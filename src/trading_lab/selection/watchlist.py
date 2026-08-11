@@ -6,11 +6,13 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Literal
 
+from trading_lab.config.vendors import V1_VENDORS
 from trading_lab.market_data.alpaca_screener import AlpacaScreener, ScreenerRow
+from trading_lab.market_data.types import BarRequest, MarketDataPort
 from trading_lab.selection.universe_gates import day_gain_too_extended, is_disallowed_product
 
 logger = logging.getLogger("trading_lab.selection.watchlist")
@@ -32,6 +34,9 @@ class WatchlistCandidate:
     volume: str | None = None
     percent_change: str | None = None
     reason: str = "screener_pass"
+    # Alpaca asset name — lets ticks re-check leveraged/ETF products by name
+    # without an extra API call (2026-08-11: tick-time check ran symbol-only).
+    name: str | None = None
 
 
 @dataclass
@@ -174,6 +179,38 @@ def _passes_cheap_filters(row: ScreenerRow, *, price: Decimal | None = None) -> 
     return True, "ok"
 
 
+def min_watchlist_prev_bars() -> int:
+    """1Min bars required over the prior 24h to earn a watchlist slot. 0 disables.
+
+    2026-08-11: ALGS sat on the list all day returning 0–1 bars per tick (IEX
+    feed, ultra-thin tape) — it can never reach the 21-bar evaluation minimum,
+    so it only starves the speculative sniper of a usable slot.
+    """
+    try:
+        return max(0, int(os.environ.get("MIN_WATCHLIST_PREV_BARS", "100")))
+    except ValueError:
+        return 100
+
+
+def _bar_coverage(md: MarketDataPort, symbol: str) -> int | None:
+    """1Min bar count over the last 24h; None = data unavailable (gate fails open)."""
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(hours=24)
+    try:
+        bars = md.get_bars(
+            BarRequest(
+                symbol=symbol,
+                timeframe="1Min",
+                start=start,
+                end=end,
+                feed=V1_VENDORS.alpaca_feed,
+            )
+        )
+    except Exception:  # noqa: BLE001 — coverage is an optimization, not a safety gate
+        return None
+    return len(bars)
+
+
 def _passes_asset(meta: Any) -> tuple[bool, str]:
     if meta is None:
         return False, "asset_lookup_failed"
@@ -193,11 +230,22 @@ def build_daily_watchlist(
     screener: AlpacaScreener | None = None,
     size: int | None = None,
     verify_assets: bool = True,
+    market_data: MarketDataPort | None = None,
 ) -> WatchlistDocument:
     """Scan Alpaca movers/actives → strategy filters → candidate list (no ENTERs)."""
     size = size or watchlist_size()
     built_at = datetime.now(timezone.utc).isoformat()
     client = screener or AlpacaScreener()
+
+    min_bars = min_watchlist_prev_bars()
+    md: MarketDataPort | None = market_data
+    if min_bars > 0 and md is None:
+        try:
+            from trading_lab.market_data.factory import resolve_market_data
+
+            md = resolve_market_data()
+        except Exception:  # noqa: BLE001 — no data backend → coverage gate fails open
+            md = None
 
     try:
         actives = client.most_actives(top=max(size * 2, 25))
@@ -228,10 +276,18 @@ def build_daily_watchlist(
     for row, price in shortlist:
         if len(candidates) >= size:
             break
+        asset_name: str | None = None
         if verify_assets:
-            ok, reason = _passes_asset(client.asset(row.symbol))
+            meta = client.asset(row.symbol)
+            ok, reason = _passes_asset(meta)
             if not ok:
                 rejected.append(f"{row.symbol}:{reason}")
+                continue
+            asset_name = (getattr(meta, "name", None) or None) if meta is not None else None
+        if min_bars > 0 and md is not None:
+            coverage = _bar_coverage(md, row.symbol)
+            if coverage is not None and coverage < min_bars:
+                rejected.append(f"{row.symbol}:bar_coverage={coverage}<{min_bars}")
                 continue
         # Track all screener sources that mentioned this symbol
         sources = sorted({r.source for r in [*actives, *movers] if r.symbol == row.symbol})
@@ -243,6 +299,7 @@ def build_daily_watchlist(
                 volume=str(row.volume) if row.volume is not None else None,
                 percent_change=str(row.percent_change) if row.percent_change is not None else None,
                 reason="screener_pass",
+                name=asset_name,
             )
         )
 
