@@ -76,6 +76,7 @@ def test_scorecard_worse_sets_propose_revert(tmp_path: Path, monkeypatch) -> Non
             ),
             "mid_cap_sniper": AgentScorecard(agent_id="mid_cap_sniper", composite="0"),
             "speculative_sniper": AgentScorecard(agent_id="speculative_sniper", composite="0"),
+            "gainer_sniper": AgentScorecard(agent_id="gainer_sniper", composite="0"),
             "swing_momentum": AgentScorecard(agent_id="swing_momentum", composite="0"),
         },
     )
@@ -113,6 +114,7 @@ def test_friday_review_pack(tmp_path: Path, monkeypatch) -> None:
                     "large_cap_sniper",
                     "mid_cap_sniper",
                     "speculative_sniper",
+                    "gainer_sniper",
                     "swing_momentum",
                 )
             },
@@ -120,7 +122,7 @@ def test_friday_review_pack(tmp_path: Path, monkeypatch) -> None:
     )
     assert pack["ok"] is True
     assert "scorecard" in pack
-    assert len(pack["coaches"]["coaches"]) == 4
+    assert len(pack["coaches"]["coaches"]) == 5
     # silence unused import lint in some runners
     _ = fr
     _ = CoachClient

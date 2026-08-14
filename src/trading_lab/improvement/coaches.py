@@ -1,4 +1,4 @@
-"""Four strategy coaches — one agent_id each. Friday analysis only; no trades."""
+"""Strategy coaches — one agent_id each. Friday analysis only; no trades."""
 
 from __future__ import annotations
 
@@ -214,7 +214,7 @@ def run_weekly_coaches(
     client: CoachClient | None = None,
     scorecard: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run all four coaches separately; persist each proposal. No overlay apply."""
+    """Run each registered strategy coach separately; persist each proposal. No overlay apply."""
     results: list[dict[str, Any]] = []
     for agent_id in AGENTS:
         try:

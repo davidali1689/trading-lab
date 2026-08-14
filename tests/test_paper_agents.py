@@ -150,6 +150,16 @@ def test_resolve_sniper_mid_cap_band_edges():
     assert resolve_sniper_agent(Decimal("1999999999"), "MIC") == "speculative_sniper"
 
 
+def test_resolve_live_gainer_steals_micro_and_mid_not_mega():
+    live = {"FGI": Decimal("8"), "ARX": Decimal("9"), "NVDA": Decimal("3")}
+    assert resolve_sniper_agent(None, "FGI", live_gainers=live) == "gainer_sniper"
+    assert (
+        resolve_sniper_agent(Decimal("5000000000"), "ARX", live_gainers=live) == "gainer_sniper"
+    )
+    assert resolve_sniper_agent(None, "NVDA", live_gainers=live) == "large_cap_sniper"
+    assert resolve_sniper_agent(None, "FGI") == "speculative_sniper"
+
+
 def test_run_symbol_routes_speculative_and_defers_swing(tmp_path, monkeypatch):
     monkeypatch.setenv("USE_MOCK_BARS", "false")
     monkeypatch.setenv("ALPACA_API_KEY", "PK")

@@ -50,7 +50,7 @@ class SniperSharedExecution(BaseModel):
     )
     notes: list[str] = Field(
         default_factory=lambda: [
-            "Applies to large_cap_sniper + mid_cap_sniper + speculative_sniper only.",
+            "Applies to large_cap_sniper + mid_cap_sniper + speculative_sniper + gainer_sniper.",
             "Never force a trade — chop → NO_TRADE (Douglas / Livermore).",
             "Budget: one slice = equity/5; book max 3 open positions.",
             "At 50% of target: sell 50%, stop → breakeven on remainder (Elder money mgmt).",

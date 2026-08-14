@@ -176,7 +176,7 @@ def test_weekly_coaches_mock(tmp_path: Path, monkeypatch) -> None:
     client = CoachClient(mock=True)
     out = run_weekly_coaches(report=report, client=client)
     assert out["ok"] is True
-    assert len(out["coaches"]) == 4
+    assert len(out["coaches"]) == 5
     prop = run_strategy_coach("swing_momentum", report=report, client=client, week_misses=[])
     assert prop.status == "pending_green_light"
     assert prop.mock is True

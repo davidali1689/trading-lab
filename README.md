@@ -10,7 +10,7 @@ Paper trading lab: rule-based sniper + swing agents on Alpaca, scheduled via Eve
 | 09:30–16:00 | `tick` | Sniper + swing evaluates (entries RTH only) |
 | 16:05 | `eod` | Flatten snipers, persist journal, EOD postmortem |
 | 18:00 | `postmarket` | Next-day watchlist + **miss harvest → S3** |
-| Fri 18:05 | `weekly_coaches` | **Weekend pack:** scorecard (better/worse) + **four coaches** → S3 |
+| Fri 18:05 | `weekly_coaches` | **Weekend pack:** scorecard (better/worse) + **strategy coaches** → S3 |
 
 Entries never run after hours. `never_force_trade` and risk guardrails are immutable.
 
@@ -19,6 +19,7 @@ Entries never run after hours. `never_force_trade` and risk guardrails are immut
 - `large_cap_sniper`
 - `mid_cap_sniper`
 - `speculative_sniper`
+- `gainer_sniper`
 - `swing_momentum`
 
 See [`docs/agents.md`](docs/agents.md).
@@ -32,7 +33,7 @@ See [`docs/agents.md`](docs/agents.md).
    Written to `s3://$JOURNAL_S3_BUCKET/misses/{day}/` (+ `by_agent/{agent_id}.json`).
 2. **Friday weekend pack** (`weekly_coaches` 18:05):
    - **Scorecard** (deterministic): per-strategy capture rate + expectancy + drawdown → `improving` / `flat` / `worse` vs prior week → `scorecards/{week}.json`. `propose_revert` is a **flag only** (no auto-rollback).
-   - **Four coaches** (Grok 4.3 `effort=high`): each reads misses + its scorecard slice → `proposals/{week}/{agent_id}.json` (`pending_green_light`).
+   - **Strategy coaches** (Grok 4.3 `effort=high`): each reads misses + its scorecard slice → `proposals/{week}/{agent_id}.json` (`pending_green_light`).
 3. **You** review over the weekend; overlay apply is manual — coaches cannot submit orders.
 
 Coach model env: `COACH_MODEL_ID=xai.grok-4.3` (Mantle), fallback `moonshot.kimi-k2-thinking`, `COACH_MISS_DAYS=5` (each coach reads up to 5 daily `misses/{day}/by_agent/{agent}.json` files). Production: `MOCK_BEDROCK=false`.

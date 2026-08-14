@@ -40,6 +40,13 @@ from trading_lab.schedule import (
 )
 from trading_lab.schedule.market_clock import now_et
 from trading_lab.schemas.trades import RunMode
+from trading_lab.selection.gainer_scan import (
+    in_gainer_window,
+    live_gainer_pct_map,
+    persist_first_hour_snapshot,
+    scan_live_gainers,
+    union_tick_symbols,
+)
 from trading_lab.selection.swing_watchlist import (
     build_swing_watchlist,
     get_swing_watchlist,
@@ -223,11 +230,20 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
                 detail=kill_switch_reason(),
                 ts=datetime.now(timezone.utc).isoformat(),
             )
+        live_map: dict = {}
+        if not body.symbol and in_gainer_window():
+            try:
+                live_rows = scan_live_gainers()
+                live_map = live_gainer_pct_map(live_rows)
+                persist_first_hour_snapshot(live_rows)
+            except Exception:  # noqa: BLE001 — tick continues on frozen watchlist
+                logger.exception("live gainer scan failed")
+                live_map = {}
         if body.symbol:
             symbols = [body.symbol.upper()]
         else:
             wl = get_watchlist()
-            symbols = wl.symbols
+            symbols = union_tick_symbols(wl.symbols, list(live_map.keys()))
             if not symbols:
                 return PhaseResult(
                     ok=True,
@@ -253,7 +269,11 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
             # Real paper path: paper mode + keys + live bars (not mock).
             # Budget = current Alpaca equity/5 every tick.
             if _mode() == RunMode.PAPER and has_alpaca_keys() and not use_mock:
-                summary = run_symbol_paper_tick(symbol=sym, journal_path=JOURNAL_PATH)
+                summary = run_symbol_paper_tick(
+                    symbol=sym,
+                    journal_path=JOURNAL_PATH,
+                    live_gainers=live_map or None,
+                )
                 summary["swing_power_hour"] = power
                 summary["budget"] = "platform equity/5, max 3 open (dynamic)"
                 _emit_from_summary(summary)
@@ -395,7 +415,7 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         )
 
     if phase == "weekly_coaches":
-        # Friday 18:05 — scorecard + four coaches (weekend review pack).
+        # Friday 18:05 — scorecard + strategy coaches (weekend review pack).
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         pack = run_friday_review(JOURNAL_PATH)
         results.append({"hydrate": hydrate, "friday_review": pack})

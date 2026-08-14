@@ -13,7 +13,7 @@ trading platform (Alpaca paper today; live later), then splits it.
 | Rule | Value |
 |------|--------|
 | Equity source | Alpaca account equity (compounds daily with P&amp;L) |
-| Slice size | `current_equity / 5` (e.g. $100k → **$20k**/agent; $105k → **$21k**) |
+| Slice size | `current_equity / 5` (e.g. $100k → **$20k**/agent; $105k → **$21k**). Speculative is half (`equity/10`). |
 | Max open positions | **3** (three of five slices) |
 | Max daily loss | **1 slice of that day’s equity** |
 | Unused slices | Stay cash — never force a trade to fill them |
@@ -92,7 +92,22 @@ Implementation: `trading_lab.execution.budget` via `make_risk_gate` (paper) and
 | Hold | Flat by EOD |
 | Book ideas | Only trade the clear pitch; no catalyst → SKIP |
 
-### 4. `swing_momentum` (swing / multi-day)
+### 4. `gainer_sniper` (sniper / first-hour)
+
+| | |
+|--|--|
+| Universe | Live Alpaca gainers, **09:30–10:30 ET** only (union onto the tick set, cap 8 extras) |
+| Cap band | Micro + mid on the live gainer tape; mega large-caps stay with `large_cap_sniper` |
+| Bars | 1Min; **≥10** in session (~09:40 earliest) |
+| Target / stop | **6% / 2.5%** |
+| Size | Full slice = equity/5, then **0.25%** per-trade risk cap |
+| Key gates | Day-gain **+2% to +15%**; close ≥ VWAP; RVOL ≥2 paper / 2.5 live; $5–$50; no 5-letter W/U; no leveraged products; **no Finnhub catalyst** |
+| Hold | Flat by EOD; window release after 10:30 |
+| Book ideas | Catch the names miss harvest only sees at +40–150% EOD, while they are still early |
+
+**Why it exists:** S3 miss reports (08-05–08-13) are almost all bucket A — EOD gainers never hit the frozen most-actives watchlist. This agent rescans movers every tick in the first hour and trades the early band, not the EOD print.
+
+### 5. `swing_momentum` (swing / multi-day)
 
 | | |
 |--|--|
@@ -120,13 +135,14 @@ to hold a slot — ALGS-class zero-bar names can never reach the 21-bar minimum.
 ## Routing (paper tick)
 
 ```
-symbol → resolve_sniper_agent(cap)
-       → large | mid | speculative
+symbol → resolve_sniper_agent(cap, live_gainers)
+       → gainer (first-hour live tape, not mega) | large | mid | speculative
        → evaluate → risk gate → Alpaca paper (or SKIP)
        → also evaluate swing_momentum (submit only in power hour)
 ```
 
 Mid-cap gap closed: $2B–$10B → `mid_cap_sniper`.
+First-hour live gainers steal micro and mid from those snipers; `LARGE_CAP_SYMBOLS` stay large.
 
 ---
 
@@ -152,7 +168,7 @@ Ops-only — **never** places orders.
 | Cadence | Who | Output |
 |---------|-----|--------|
 | Daily 18:00 `postmarket` | Deterministic harvest | `misses/{day}/report.json` + `by_agent/*.json` |
-| Fri 18:05 `weekly_coaches` | Scorecard job + 4 coaches | `scorecards/{week}.json` + `proposals/{week}/*.json` |
+| Fri 18:05 `weekly_coaches` | Scorecard job + coaches | `scorecards/{week}.json` + `proposals/{week}/*.json` |
 
 Buckets: **A** never watchlisted, **B** skipped/no ENTER, **C** traded but weak capture.  
 Proposals stay `pending_green_light` until you approve; guardrails are not tunable by coaches.  

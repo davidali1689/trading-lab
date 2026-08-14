@@ -40,6 +40,7 @@ def test_agents_registered():
         "large_cap_sniper",
         "mid_cap_sniper",
         "speculative_sniper",
+        "gainer_sniper",
         "swing_momentum",
     }
     assert get_agent("swing_momentum").family == "swing"

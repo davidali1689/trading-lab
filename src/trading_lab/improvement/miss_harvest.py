@@ -15,6 +15,7 @@ from trading_lab.agents import AGENTS
 from trading_lab.market_data.alpaca_screener import AlpacaScreener, ScreenerRow
 from trading_lab.pipeline.paper_agents import resolve_market_cap, resolve_sniper_agent
 from trading_lab.schemas.misses import DailyMissReport, MissBucket, MissRecord
+from trading_lab.selection.gainer_scan import load_first_hour_snapshot
 from trading_lab.selection.watchlist import MIN_PRICE, get_watchlist
 
 logger = logging.getLogger("trading_lab.improvement.miss_harvest")
@@ -149,6 +150,9 @@ def build_miss_report(
         )
 
     records: list[MissRecord] = []
+    first_hour = load_first_hour_snapshot(day=day)
+    have_first_hour = first_hour.source != "empty"
+    first_hour_by = {c.symbol.upper(): c for c in first_hour.candidates if c.symbol}
     for row in gainers:
         bucket, detail = _classify(
             row.symbol,
@@ -164,6 +168,7 @@ def build_miss_report(
         # attribute trades from journal if we re-query — lightweight: any trade ⇒ unknown agents
         if row.symbol in traded:
             traded_by = _agents_for_symbol(journal_path, row.symbol)
+        early = first_hour_by.get(row.symbol.upper())
         rec = MissRecord(
             symbol=row.symbol,
             percent_change=str(row.percent_change) if row.percent_change is not None else None,
@@ -175,6 +180,8 @@ def build_miss_report(
             traded_by=traded_by,
             trade_pnl_pct=pnl.get(row.symbol),
             detail=detail,
+            seen_first_hour=None if not have_first_hour else early is not None,
+            first_hour_pct=early.percent_change if early is not None else None,
         )
         if _is_true_miss(bucket, detail) or bucket == MissBucket.ENTERED_MISSED_MOVE:
             # drop only "strong capture" from miss ranking
@@ -186,6 +193,8 @@ def build_miss_report(
     for aid in AGENT_IDS:
         if aid == "swing_momentum":
             pool = records  # swing owns all tiers
+        elif aid == "gainer_sniper":
+            pool = [r for r in records if r.seen_first_hour]
         else:
             pool = [r for r in records if r.owner_sniper == aid]
         if not pool:
@@ -262,7 +271,9 @@ def persist_miss_report(
             "related": [
                 r.model_dump(mode="json")
                 for r in report.top_gainers
-                if agent_id == "swing_momentum" or r.owner_sniper == agent_id
+                if agent_id == "swing_momentum"
+                or agent_id == "gainer_sniper"
+                or r.owner_sniper == agent_id
             ][:10],
         }
         client.put_object(

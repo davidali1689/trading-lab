@@ -27,6 +27,8 @@ class MissRecord(BaseModel):
     traded_by: list[str] = Field(default_factory=list)
     trade_pnl_pct: str | None = None
     detail: str = ""
+    seen_first_hour: bool | None = None
+    first_hour_pct: str | None = None
 
 
 class DailyMissReport(BaseModel):

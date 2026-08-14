@@ -9,6 +9,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
 
+from trading_lab.agents.sniper.gainer import GAINER_SNIPER
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER
 from trading_lab.agents.sniper.mid_cap import MID_CAP_SNIPER
 from trading_lab.agents.sniper.shared_execution import SniperStatus
@@ -17,6 +18,7 @@ from trading_lab.broker.alpaca import AlpacaPaperBroker
 from trading_lab.catalysts.finnhub_news import has_finnhub_key, symbol_has_recent_news
 from trading_lab.catalysts.finnhub_profile import fetch_market_cap_usd
 from trading_lab.config.vendors import V1_VENDORS
+from trading_lab.eval.gainer import evaluate_gainer_sniper
 from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
@@ -119,11 +121,24 @@ MID_CAP_SYMBOLS = frozenset(
 )
 
 
-def resolve_sniper_agent(market_cap_usd: Decimal | None, symbol: str) -> str:
-    """Return large_cap_sniper | mid_cap_sniper | speculative_sniper."""
+def _live_gainer_keys(live_gainers: dict[str, Decimal] | None) -> set[str]:
+    if not live_gainers:
+        return set()
+    return {str(s).upper() for s in live_gainers}
+
+
+def resolve_sniper_agent(
+    market_cap_usd: Decimal | None,
+    symbol: str,
+    *,
+    live_gainers: dict[str, Decimal] | None = None,
+) -> str:
+    """Return sniper id. Live first-hour gainers steal micro+mid, not mega large-caps."""
     sym = symbol.upper()
     if sym in LARGE_CAP_SYMBOLS:
         return LARGE_CAP_SNIPER.agent_id
+    if sym in _live_gainer_keys(live_gainers):
+        return GAINER_SNIPER.agent_id
     if sym in MID_CAP_SYMBOLS:
         return MID_CAP_SNIPER.agent_id
     if market_cap_usd is None:
@@ -202,6 +217,7 @@ def run_sniper_paper_tick(
     market_cap_usd: Decimal | None,
     broker: AlpacaPaperBroker | None = None,
     notional_usd: Decimal | None = None,
+    live_gainers: dict[str, Decimal] | None = None,
 ) -> dict:
     """1Min bars → routed sniper eval → paper bracket on ENTER."""
     run_id = uuid4()
@@ -218,7 +234,8 @@ def run_sniper_paper_tick(
         )
     )
     journal = SqliteJournal(journal_path)
-    if len(bars) < 21:
+    min_bars = GAINER_SNIPER.min_bars if agent_id == GAINER_SNIPER.agent_id else 21
+    if len(bars) < min_bars:
         write_skip(
             journal,
             run_id=run_id,
@@ -400,7 +417,18 @@ def run_sniper_paper_tick(
         spy_aligned=spy_aligned,
         qqq_aligned=qqq_aligned,
     )
-    if agent_id == SPECULATIVE_SNIPER.agent_id:
+    if agent_id == GAINER_SNIPER.agent_id:
+        pct = None
+        if live_gainers:
+            pct = live_gainers.get(symbol.upper())
+        decision = evaluate_gainer_sniper(
+            ctx,
+            mode=RunMode.PAPER,
+            now_et=now_et(),
+            day_gain_pct=pct,
+            on_live_gainer_list=symbol.upper() in _live_gainer_keys(live_gainers),
+        )
+    elif agent_id == SPECULATIVE_SNIPER.agent_id:
         decision = evaluate_speculative_sniper(ctx, mode=RunMode.PAPER)
     elif agent_id == MID_CAP_SNIPER.agent_id:
         decision = evaluate_mid_cap_sniper(ctx, mode=RunMode.PAPER)
@@ -503,10 +531,11 @@ def run_symbol_paper_tick(
     journal_path: str,
     market_cap_usd: Decimal | None = None,
     notional_usd: Decimal | None = None,
+    live_gainers: dict[str, Decimal] | None = None,
 ) -> dict:
     """Route sniper by cap + evaluate swing (orders only in power hour)."""
     cap = resolve_market_cap(symbol, market_cap_usd)
-    sniper_id = resolve_sniper_agent(cap, symbol)
+    sniper_id = resolve_sniper_agent(cap, symbol, live_gainers=live_gainers)
     broker = AlpacaPaperBroker()
     results: dict = {
         "symbol": symbol,
@@ -524,6 +553,7 @@ def run_symbol_paper_tick(
         market_cap_usd=cap,
         broker=broker,
         notional_usd=notional_usd,
+        live_gainers=live_gainers,
     )
     results["sniper"] = sniper_out
     results["orders"] += int(sniper_out.get("orders") or 0)

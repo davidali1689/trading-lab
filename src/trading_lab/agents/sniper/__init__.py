@@ -1,4 +1,5 @@
 from trading_lab.agents.sniper.decision import SniperDecision, TradeMap
+from trading_lab.agents.sniper.gainer import GAINER_SNIPER, GainerSniperSpec
 from trading_lab.agents.sniper.large_cap import LARGE_CAP_SNIPER, LargeCapSniperSpec
 from trading_lab.agents.sniper.mid_cap import MID_CAP_SNIPER, MidCapSniperSpec
 from trading_lab.agents.sniper.shared_execution import (
@@ -14,10 +15,12 @@ from trading_lab.agents.sniper.speculative import (
 )
 
 __all__ = [
+    "GAINER_SNIPER",
     "LARGE_CAP_SNIPER",
     "MID_CAP_SNIPER",
     "SPECULATIVE_SNIPER",
     "SNIPER_SHARED",
+    "GainerSniperSpec",
     "LargeCapSniperSpec",
     "MidCapSniperSpec",
     "SpeculativeSniperSpec",

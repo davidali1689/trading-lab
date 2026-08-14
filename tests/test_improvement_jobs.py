@@ -154,6 +154,7 @@ def test_api_weekly_coaches_friday_pack(monkeypatch: pytest.MonkeyPatch, tmp_pat
                     "large_cap_sniper",
                     "mid_cap_sniper",
                     "speculative_sniper",
+                    "gainer_sniper",
                     "swing_momentum",
                 )
             ],
@@ -190,6 +191,7 @@ def test_friday_review_real_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
                 "large_cap_sniper",
                 "mid_cap_sniper",
                 "speculative_sniper",
+                "gainer_sniper",
                 "swing_momentum",
             )
         },
@@ -233,7 +235,7 @@ def test_friday_review_real_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert pack["ok"] is True
     assert pack["week_id"] == week_id_for()
     assert "scorecard" in pack
-    assert len(pack["coaches"]["coaches"]) == 4
+    assert len(pack["coaches"]["coaches"]) == 5
     assert all(c["ok"] for c in pack["coaches"]["coaches"])
     # Coaches received scorecard context via mock client path
     client = CoachClient(mock=True)

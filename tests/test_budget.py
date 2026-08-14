@@ -27,6 +27,7 @@ def test_speculative_slice_is_half_of_standard():
     assert agent_slice_notional(Decimal("100000"), "large_cap_sniper") == Decimal("20000.00")
     assert agent_slice_notional(Decimal("100000"), "mid_cap_sniper") == Decimal("20000.00")
     assert agent_slice_notional(Decimal("100000"), "swing_momentum") == Decimal("20000.00")
+    assert agent_slice_notional(Decimal("100000"), "gainer_sniper") == Decimal("20000.00")
 
 
 def test_budget_constants():

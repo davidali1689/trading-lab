@@ -24,7 +24,7 @@ class ImprovementStack(BaseModel):
             "Langfuse: trace coach prompts, scores, latency (not entry decisions)",
             "EOD Bedrock post-mortem: digest journal + narrative (MOCK_BEDROCK default)",
             "Postmarket miss harvest → S3 misses/ (deterministic A/B/C)",
-            "Friday: four strategy coaches (Grok 4.3 high) → proposals/ pending green-light",
+            "Friday: strategy coaches (Grok 4.3 high) → proposals/ pending green-light",
             "Never let Langfuse/LLM override risk gate or ENTER gates",
             "Strategy overlay apply only after human approval (no auto-rewrite)",
         ]

@@ -66,7 +66,7 @@ SCHEDULES = {
         "input": {"phase": "postmarket"},
     },
     "weekly_coaches": {
-        "description": "Friday 18:05 ET scorecard + four coaches → weekend pack",
+        "description": "Friday 18:05 ET scorecard + strategy coaches → weekend pack",
         "schedule_expression": "cron(5 18 ? * FRI *)",
         "input": {"phase": "weekly_coaches"},
     },

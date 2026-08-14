@@ -83,6 +83,7 @@ def test_walk_forward_lists_all_agents(tmp_path: Path):
         "large_cap_sniper",
         "mid_cap_sniper",
         "speculative_sniper",
+        "gainer_sniper",
         "swing_momentum",
     }
 

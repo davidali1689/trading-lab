@@ -1,4 +1,4 @@
-"""Friday weekend pack: scorecard + four coaches in one phase."""
+"""Friday weekend pack: scorecard + strategy coaches in one phase."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def run_friday_review(
     """
     Single Friday pack for weekend review:
     1) weekly scorecard (improving / flat / worse)
-    2) four strategy coaches (proposals pending green-light)
+    2) strategy coaches (proposals pending green-light)
     """
     report = report or build_miss_report(journal_path=journal_path)
     card = build_weekly_scorecard(

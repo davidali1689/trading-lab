@@ -31,7 +31,9 @@ from trading_lab.schemas.trades import ExitReason
 
 logger = logging.getLogger("trading_lab.exit_reassess")
 
-SNIPER_AGENTS = frozenset({"large_cap_sniper", "mid_cap_sniper", "speculative_sniper"})
+SNIPER_AGENTS = frozenset(
+    {"large_cap_sniper", "mid_cap_sniper", "speculative_sniper", "gainer_sniper"}
+)
 
 
 class ExitAction(StrEnum):
