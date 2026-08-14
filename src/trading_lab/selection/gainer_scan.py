@@ -185,11 +185,7 @@ def persist_first_hour_snapshot(
 
     cands = snapshot_candidates(rows)
     existing = load_first_hour_snapshot(bucket=bucket, prefix=prefix)
-    first_seen = {
-        c.symbol: c
-        for c in existing.candidates
-        if c.symbol
-    }
+    first_seen = {c.symbol: c for c in existing.candidates if c.symbol}
     merged: list[WatchlistCandidate] = []
     seen: set[str] = set()
     for cand in [*existing.candidates, *cands]:
