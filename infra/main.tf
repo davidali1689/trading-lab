@@ -12,7 +12,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "platform-tfstate-b667becb"
+    # Bucket lives in gitignored infra/backend.hcl (see backend.hcl.example).
     key            = "apps/trading-lab/dev/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "platform-tflock"
@@ -103,9 +103,9 @@ variable "kill_switch" {
 }
 
 variable "alert_email" {
-  description = "SNS email subscription for CloudWatch error alerts. Empty = topic only, no subscription."
+  description = "SNS email subscription for CloudWatch error alerts. Empty = topic only, no subscription. Set via infra/local.tfvars (gitignored)."
   type        = string
-  default     = "davidali1689@gmail.com"
+  default     = ""
 }
 
 module "journal_bucket" {

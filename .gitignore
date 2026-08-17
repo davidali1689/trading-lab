@@ -18,6 +18,8 @@ infra/*.tfstate*
 infra/crash.log
 infra/.terraform.lock.hcl
 infra/tfplan
+infra/backend.hcl
+infra/local.tfvars
 
 # OS
 .DS_Store

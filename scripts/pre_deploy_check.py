@@ -12,15 +12,29 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 REGION = "us-east-1"
 APP = "trading-lab"
 SECRET_ID = "trading-lab-vendor-keys"
-STATE_BUCKET = "platform-tfstate-b667becb"
 STATE_KEY = "apps/trading-lab/dev/terraform.tfstate"
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def state_bucket() -> str:
+    env = os.environ.get("TF_STATE_BUCKET", "").strip()
+    if env:
+        return env
+    hcl = ROOT / "infra" / "backend.hcl"
+    if hcl.exists():
+        match = re.search(r'bucket\s*=\s*"([^"]+)"', hcl.read_text(encoding="utf-8"))
+        if match:
+            return match.group(1)
+    return ""
 
 FAILURES: list[str] = []
 
@@ -72,11 +86,15 @@ def main() -> int:
         check("AWS identity", False, out[:200])
 
     # 3) Backend state reachable (read-only)
-    rc, out = run([
-        "aws", "s3api", "head-object",
-        "--bucket", STATE_BUCKET, "--key", STATE_KEY, "--region", REGION,
-    ])
-    check("tofu state object", rc == 0, f"s3://{STATE_BUCKET}/{STATE_KEY}")
+    bucket = state_bucket()
+    if not bucket:
+        check("tofu state object", False, "copy infra/backend.hcl.example → infra/backend.hcl")
+    else:
+        rc, out = run([
+            "aws", "s3api", "head-object",
+            "--bucket", bucket, "--key", STATE_KEY, "--region", REGION,
+        ])
+        check("tofu state object", rc == 0, f"s3://{bucket}/{STATE_KEY}")
 
     # 4) Vendor secrets shell exists
     rc, out = run([

@@ -133,9 +133,14 @@ def main() -> int:
 
     print("\n== OpenTofu ==")
     tofu(["fmt", "-check", "-recursive"])
-    tofu(["init", "-input=false"])
+    init_args = ["init", "-input=false"]
+    if (INFRA / "backend.hcl").exists():
+        init_args.extend(["-backend-config=backend.hcl"])
+    tofu(init_args)
     tofu(["validate"])
     tfvars = ["-var", f"image_uri={image_uri}", "-var", f"image_tag={tag}"]
+    if (INFRA / "local.tfvars").exists():
+        tfvars.extend(["-var-file=local.tfvars"])
     plan_args = ["plan", "-input=false", "-out=tfplan", *tfvars]
     if args.destroy:
         plan_args.insert(1, "-destroy")

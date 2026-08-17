@@ -28,8 +28,9 @@ ECR — correct for infra-only patches where the running image stays the same.
 
 ## State
 
-S3 backend `platform-tfstate-b667becb` / `apps/trading-lab/dev/terraform.tfstate`,
-DynamoDB lock table `platform-tflock` (configured in `infra/main.tf`).
+S3 backend bucket is local-only: copy `infra/backend.hcl.example` → `infra/backend.hcl`.
+State key `apps/trading-lab/dev/terraform.tfstate`, DynamoDB lock table `platform-tflock`.
+Alert email (optional): `infra/local.tfvars` with `alert_email = "you@example.com"`.
 
 ## Vendor secrets (AWS Secrets Manager)
 
