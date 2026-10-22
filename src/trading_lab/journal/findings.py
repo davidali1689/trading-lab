@@ -17,8 +17,30 @@ from trading_lab.schedule.market_clock import now_et
 logger = logging.getLogger("trading_lab.journal.findings")
 
 
+FINDINGS_ROOT = "findings"
+
+
 def premarket_finding_key(day: str, symbol: str) -> str:
-    return f"findings/premarket/{day}/{symbol.upper()}.json"
+    """Same key the morning researcher uploads."""
+    return f"{FINDINGS_ROOT}/premarket/{day}/{symbol.upper()}.json"
+
+
+def proposal_finding_prefix(week: str) -> str:
+    return f"{FINDINGS_ROOT}/proposals/{week}/"
+
+
+def replay_finding_prefix(week: str) -> str:
+    return f"{FINDINGS_ROOT}/replays/{week}/"
+
+
+def proposal_finding_key(week: str, agent_id: str) -> str:
+    """Same key the Friday miss researcher uploads."""
+    return f"{proposal_finding_prefix(week)}{agent_id}.json"
+
+
+def replay_finding_key(week: str, agent_id: str) -> str:
+    """Same key the replay researcher uploads."""
+    return f"{replay_finding_prefix(week)}{agent_id}.json"
 
 
 def _score(payload: dict[str, Any] | None, key: str) -> int:
@@ -93,6 +115,26 @@ def load_premarket_finding(
     if not isinstance(data, dict):
         return None
     return data
+
+
+def list_finding_keys(
+    prefix: str,
+    *,
+    bucket: str | None = None,
+    client: Any | None = None,
+) -> list[str]:
+    """List keys under a findings prefix. Empty when the bucket or prefix is missing."""
+    bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
+    if not bucket:
+        return []
+    s3 = client or _client()
+    if s3 is None:
+        return []
+    try:
+        page = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    except Exception:  # noqa: BLE001 — missing prefix is normal
+        return []
+    return [str(row["Key"]) for row in page.get("Contents") or [] if row.get("Key")]
 
 
 def _client() -> Any | None:

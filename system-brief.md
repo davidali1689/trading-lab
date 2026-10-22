@@ -1,0 +1,14 @@
+2026-10-22
+
+## System brief
+- Idea: An outside review says the paper lab is safe, then asks for three extra agents: a morning research swarm, a Friday investigator that tweaks checklist numbers, and an automatic replay of those tweaks.
+- Result you want: A reason to buy that pays more than it loses, on paper, before any live money.
+- Result you get: Buys of stocks that are already moving. The last written score (2026-08-11) had stops about four times the size of winners. The written rule "replay before a new order" is not what sends today's paper orders. The replay tool fully runs only the large-cap checklist, on fake bars. The fifth agent was added from the evening miss list.
+- Loop: Morning list of busy names → buy the latest price when the last minute looks hot → stop or close → evening list of winners the morning missed → Friday note proposes a looser bar → the review would have agents write that note faster, score it, and feed a morning "catalyst score" into the buy checklist. Delay: a new rule needs many days to judge, and the miss list arrives the same evening, before that sample exists.
+- Constraint: There is no tested reason the next minutes continue in our favor after we buy the current price. The scanner only finds stocks that already moved.
+- Different system? yes — one named entry, replayed on past days, with paper orders for that rule stayed off until the average winner beats the average loser. The review is the same buy-the-spike system with more busy steps around the miss list.
+- One move: Turn down the three agent add-ons. Leave the buy as a fixed checklist. The replay of one entry rule stays the only next step, and it waits until you ask.
+- Not doing: A morning swarm that writes a risk score into the buy checklist. A Friday agent that queries history and proposes a new volume or VWAP number. An automatic replay harness whose input is those Friday tweaks. A new database to replace the single-worker journal. Another scanner, bigger size, or coach advice that lowers the bar.
+- What will look worse first: Friday notes stay a pile of unread proposals with no proof attached. The evening miss list stays loud. There is no morning score to feel smart about.
+- How you will know: The buy checklist still takes no model score. No Friday proposal changes a gate. When you ask for a replay, it is one rule, and a new paper order for that rule stays off until the average win is bigger than the average loss.
+- Lens used: Goldratt (one constraint sets the output: the untested buy; busier research does not raise it). Stroh (the evening miss list is what we already do that keeps the chase in place; the review automates it). Dörner (the review treats a written replay rule as if it already governs today's orders, and it answers the loud symptom, the missed winner).

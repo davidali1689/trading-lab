@@ -134,45 +134,30 @@ def test_api_postmarket_runs_miss_harvest(monkeypatch: pytest.MonkeyPatch) -> No
     mock_miss.assert_called_once()
 
 
-def test_api_weekly_coaches_friday_pack(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_api_weekly_pulls_researcher_findings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Friday phase reads uploaded findings. It does not run a researcher or send an order."""
     monkeypatch.setenv("SECRET_ARN", "")
-    monkeypatch.setenv("MOCK_BEDROCK", "true")
-    monkeypatch.delenv("JOURNAL_S3_BUCKET", raising=False)
     from api import server
 
     client = TestClient(server.app)
-    pack = {
-        "ok": True,
-        "week_id": "2026-W29",
-        "scorecard_summary": "large_cap_sniper:worse; mid_cap_sniper:flat",
-        "scorecard": {"week_id": "2026-W29", "summary": "large_cap_sniper:worse"},
-        "coaches": {
-            "ok": True,
-            "coaches": [
-                {"agent_id": a, "ok": True}
-                for a in (
-                    "large_cap_sniper",
-                    "mid_cap_sniper",
-                    "speculative_sniper",
-                    "gainer_sniper",
-                    "swing_momentum",
-                )
-            ],
-        },
-    }
+    seen: list[str] = []
+
+    def _list(prefix: str) -> list[str]:
+        seen.append(prefix)
+        return [prefix + "large_cap_sniper.json"]
+
     with (
-        patch("api.server.hydrate_journal_from_s3", return_value={"ok": True}),
-        patch("api.server.run_friday_review", return_value=pack) as mock_review,
+        patch("api.server.list_finding_keys", side_effect=_list),
         patch("api.server._holiday_noop", return_value=None),
     ):
         resp = client.post("/events", json={"phase": "weekly_coaches", "force": True})
     assert resp.status_code == 200
     body = resp.json()
     assert body["ok"] is True
-    assert "friday_review" in body["detail"]
-    assert "scorecard=" in body["detail"]
-    assert body["results"][0]["friday_review"]["week_id"] == "2026-W29"
-    mock_review.assert_called_once()
+    assert body["results"][0]["orders"] == 0
+    assert any(prefix.startswith("findings/proposals/") for prefix in seen)
+    assert any(prefix.startswith("findings/replays/") for prefix in seen)
+    assert "friday_review" not in body["detail"]
 
 
 def test_friday_review_real_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

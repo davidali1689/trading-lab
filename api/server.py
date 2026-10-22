@@ -16,10 +16,13 @@ from fastapi import Body, FastAPI
 from pydantic import BaseModel, Field
 
 from trading_lab.config.secrets import has_alpaca_keys, load_secrets
-from trading_lab.improvement.friday_review import run_friday_review
 from trading_lab.improvement.miss_harvest import run_and_persist_miss_harvest
-from trading_lab.improvement.postmortem import run_and_persist_postmortem
 from trading_lab.improvement.scoreboard import run_and_persist_daily_scoreboard
+from trading_lab.journal.findings import (
+    list_finding_keys,
+    proposal_finding_prefix,
+    replay_finding_prefix,
+)
 from trading_lab.journal.persist import hydrate_journal_from_s3, persist_journal_to_s3
 from trading_lab.observability.cw_emf import emit_tick_metric
 from trading_lab.pipeline.eod_flatten import flatten_sniper_paper
@@ -336,21 +339,18 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
         flatten = flatten_sniper_paper(JOURNAL_PATH)
         persist = persist_journal_to_s3(JOURNAL_PATH)
-        coach = run_and_persist_postmortem(JOURNAL_PATH)
         scoreboard = run_and_persist_daily_scoreboard(JOURNAL_PATH)
         results.append(
             {
                 "hydrate": hydrate,
                 "flatten": flatten,
                 "persist": persist,
-                "postmortem": coach,
                 "scoreboard": scoreboard,
             }
         )
         detail = (
-            f"eod flatten + persist + postmortem + scoreboard: flatten={len(flatten)} "
-            f"persist={persist.get('ok')} coach={coach.get('ok')} mock={coach.get('mock')} "
-            f"scoreboard={scoreboard.get('ok')}"
+            f"eod flatten + persist + scoreboard: flatten={len(flatten)} "
+            f"persist={persist.get('ok')} scoreboard={scoreboard.get('ok')}"
         )
         logger.info(detail)
         return PhaseResult(
@@ -415,19 +415,19 @@ def _run_phase(body: PhaseRequest) -> PhaseResult:
         )
 
     if phase == "weekly_coaches":
-        # Friday 18:05 — scorecard + strategy coaches (weekend review pack).
-        hydrate = hydrate_journal_from_s3(JOURNAL_PATH)
-        pack = run_friday_review(JOURNAL_PATH)
-        results.append({"hydrate": hydrate, "friday_review": pack})
+        # Researchers run in Cursor. This phase only reads the files they uploaded.
+        iso = datetime.now(timezone.utc).isocalendar()
+        week = f"{iso.year}-W{iso.week:02d}"
+        proposals = list_finding_keys(proposal_finding_prefix(week))
+        replays = list_finding_keys(replay_finding_prefix(week))
+        results.append({"proposals": proposals, "replays": replays, "orders": 0})
         detail = (
-            f"friday_review week={pack.get('week_id')} "
-            f"scorecard={pack.get('scorecard_summary')} "
-            f"coaches_ok={(pack.get('coaches') or {}).get('ok')} "
-            f"(pending_green_light)"
+            f"pulled researcher findings week={week} "
+            f"proposals={len(proposals)} replays={len(replays)} orders=0"
         )
         logger.info(detail)
         return PhaseResult(
-            ok=bool(pack.get("ok")),
+            ok=True,
             phase=phase,
             clock_phase=clock.value,
             detail=detail,

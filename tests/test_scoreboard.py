@@ -203,10 +203,6 @@ def test_api_eod_persists_daily_scoreboard(monkeypatch: pytest.MonkeyPatch) -> N
         patch("api.server.flatten_sniper_paper", return_value=[]),
         patch("api.server.persist_journal_to_s3", return_value={"ok": True}),
         patch(
-            "api.server.run_and_persist_postmortem",
-            return_value={"ok": True, "mock": True},
-        ),
-        patch(
             "api.server.run_and_persist_daily_scoreboard",
             return_value=scoreboard_payload,
         ) as mock_board,
@@ -218,6 +214,7 @@ def test_api_eod_persists_daily_scoreboard(monkeypatch: pytest.MonkeyPatch) -> N
     body = resp.json()
     assert body["ok"] is True
     assert body["results"][0]["scoreboard"]["ok"] is True
+    assert "postmortem" not in body["results"][0]
     assert "scoreboard=" in body["detail"]
     mock_board.assert_called_once()
 
