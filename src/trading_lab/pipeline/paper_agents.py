@@ -23,6 +23,11 @@ from trading_lab.eval.large_cap import evaluate_large_cap_sniper
 from trading_lab.eval.mid_cap import evaluate_mid_cap_sniper
 from trading_lab.eval.speculative import evaluate_speculative_sniper
 from trading_lab.execution.budget import agent_slice_notional, cap_qty_by_risk
+from trading_lab.journal.findings import (
+    finding_blocks_trade,
+    finding_has_catalyst,
+    load_premarket_finding,
+)
 from trading_lab.journal.open_trades import load_open_plans
 from trading_lab.journal.sqlite import SqliteJournal
 from trading_lab.market_data.factory import resolve_market_data
@@ -405,9 +410,30 @@ def run_sniper_paper_tick(
                 "skips": 1,
             }
 
+    finding = load_premarket_finding(symbol)
+    if finding_blocks_trade(finding):
+        write_skip(
+            journal,
+            run_id=run_id,
+            agent=agent_id,
+            symbol=symbol,
+            ts=bars[-1].ts,
+            skip_reason=SkipReason.MARKET_GUARDRAIL,
+            detail=f"finding_risk score={finding.get('risk_score') if finding else ''}",
+        )
+        return {
+            "symbol": symbol,
+            "mode": "paper",
+            "status": "SKIP",
+            "found_by_agent": agent_id,
+            "detail": "finding_risk",
+            "orders": 0,
+            "skips": 1,
+        }
+
     bar = bars[-1]
     spy_aligned, qqq_aligned = _index_alignment(md, end)
-    has_catalyst = _paper_has_catalyst(symbol)
+    has_catalyst = _paper_has_catalyst(symbol) or finding_has_catalyst(finding)
     ctx = SessionContext(
         symbol=symbol,
         bar=bar,
