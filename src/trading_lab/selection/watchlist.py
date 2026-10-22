@@ -387,6 +387,55 @@ def load_watchlist(
     return doc
 
 
+def load_watchlist_for_day(
+    day: str,
+    *,
+    bucket: str | None = None,
+    prefix: str = "watchlists",
+    client: Any | None = None,
+) -> WatchlistDocument:
+    """Load the watchlist file for one trading day.
+
+    latest.json can still be yesterday. A missing dated file means the
+    morning research run is early and must not score the old list.
+    """
+    bucket = bucket or os.environ.get("JOURNAL_S3_BUCKET", "")
+    empty = WatchlistDocument(
+        symbols=[],
+        candidates=[],
+        source="empty",
+        built_at=datetime.now(timezone.utc).isoformat(),
+        size=0,
+        detail="not_ready",
+    )
+    if not bucket:
+        empty.detail = "JOURNAL_S3_BUCKET unset"
+        return empty
+    if client is None:
+        try:
+            import boto3
+        except ImportError:
+            empty.detail = "boto3 not installed"
+            return empty
+        client = boto3.client("s3")
+    key = f"{prefix.rstrip('/')}/{day}.json"
+    try:
+        obj = client.get_object(Bucket=bucket, Key=key)
+        raw = obj["Body"].read()
+        text = raw.decode("utf-8") if not isinstance(raw, str) else raw
+        data = json.loads(text)
+    except Exception:
+        logger.info("watchlist not ready key=%s", key)
+        return empty
+    if not isinstance(data, dict):
+        return empty
+    doc = WatchlistDocument.from_dict(data, source="s3")
+    if not doc.symbols:
+        doc.source = "empty"
+        doc.detail = "not_ready"
+    return doc
+
+
 def get_watchlist(*, refresh: bool = False) -> WatchlistDocument:
     """Load S3 latest for ticks; optional refresh rebuilds from screener."""
     if refresh:

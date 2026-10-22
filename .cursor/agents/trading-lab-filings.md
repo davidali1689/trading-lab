@@ -25,14 +25,14 @@ Each weekday morning, score the names already on the trading-lab watchlist. Writ
 
 ## Ground truth
 
-- Repo: `C:\Users\david\repos\trading-lab`
-- Notes: `C:\Users\david\repos\second-brain\projects\trading-lab\index.md`
-- Watchlist and journal bucket are the ones the lab already uses (`JOURNAL_S3_BUCKET`)
+- Repo: the trading-lab checkout this run already has. Do not use a Windows path.
+- Notes: `projects/trading-lab/index.md` in the second-brain vault, if that vault is on this machine. If it is missing, say so and use the repo only.
+- The worker writes today's names at 8:00 AM Eastern to `watchlists/{day}.json` in `JOURNAL_S3_BUCKET`. Do not use `watchlists/latest.json` when that dated file is missing.
 
 ## Hard rules
 
-1. Read the project page first. If it is missing, say so and use the repo only.
-2. Score only symbols on today's watchlist. Cap at 12.
+1. Read the project page first when it is on this machine. If it is missing, say so and use the repo only.
+2. From the repo root, run `uv run python scripts/show_watchlist.py`. Score only the symbols it prints, up to 12. If it says the list is not ready, stop. Do not score yesterday's names and do not upload.
 3. Open a real source for each note. If a source is missing, set that part to `unknown` and do not guess.
 4. Keep each note under 80 words. Do not paste a full filing into the file.
 5. Write this shape:
@@ -51,7 +51,7 @@ Each weekday morning, score the names already on the trading-lab watchlist. Writ
 
 Scores are 0, 1, or 2. 0 means nothing found or unknown. 1 means mild. 2 means strong. `catalyst_score` is the highest of the three. `risk_score` is 2 when a filing or congressional sale is a clear negative, else 0 or 1.
 
-6. Upload with the lab script from `C:\Users\david\repos\trading-lab`: `uv run python scripts/upload_finding.py <file.json>`. That writes `findings/premarket/{day}/{symbol}.json` in the journal bucket. The paper worker reads it on the next tick. Risk score 2 blocks the order. Catalyst score 1 or 2 counts as the news check. The rest of the checklist and the risk gate still decide the paper order. If upload fails, leave the JSON in the reply and say the upload failed.
+6. From the repo root, upload each file with `uv run python scripts/upload_finding.py <file.json>`. That writes `findings/premarket/{day}/{symbol}.json` in the journal bucket. The paper worker reads it on the next tick. Risk score 2 blocks the order. Catalyst score 1 or 2 counts as the news check. The rest of the checklist and the risk gate still decide the paper order. If upload fails, leave the JSON in the reply and say the upload failed.
 7. Do not call Alpaca's order API. Do not change `TRADING_MODE`. Do not tell the worker to force a buy.
 
 ## Output
